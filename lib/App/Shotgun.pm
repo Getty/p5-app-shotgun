@@ -1,11 +1,15 @@
 package App::Shotgun;
+use strict;
+use warnings;
+
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
-use MooseX::POE;
+use MooseX::POE::SweetArgs;
 use Cwd qw( getcwd );
 
 with qw(
 	MooseX::Getopt
+	MooseX::LogDispatch
 );
 
 # TODO unimplemented
@@ -65,9 +69,13 @@ has _state => (
 );
 
 has _connections => (
+	traits => ['Array'],
 	isa => 'ArrayRef',
 	is => 'ro',
 	default => sub { [] },
+	handles => {
+		new_connection => 'push',
+	},
 );
 
 has _current_connection => (
@@ -95,6 +103,8 @@ has error => (
 sub shot {
 	my $self = shift;
 
+	$self->logger->debug( "Starting SHOTGUN" );
+
 	# construct all of our connection targets
 	foreach my $t ( @{ $self->targets } ) {
 		if ( ! exists $t->{'type'} ) {
@@ -106,8 +116,8 @@ sub shot {
 		if ( $@ ) {
 			die "Unknown target type: $type - $@";
 		} else {
-			my $connection = "App::Shotgun::$type"->new( %$t );
-			$self->_connections->push( $connection );
+			my $connection = "App::Shotgun::$type"->new( %$t, shotgun => $self );
+			$self->new_connection( $connection );
 		}
 	}
 
@@ -120,6 +130,8 @@ sub shot {
 
 sub _error {
 	my( $self, $target, $error ) = @_;
+
+	$self->logger->debug( "ERROR from(" . $target->name . "): $error" );
 
 	if ( $self->_state eq 'start' ) {
 		$self->_add_error( "Error connecting to(" . $target->name . "): $error" );
@@ -138,6 +150,8 @@ sub _error {
 sub _ready {
 	my( $self, $target ) = @_;
 
+	$self->logger->debug( "(" . $target->name . ") is ready" );
+
 	# $target is now ready for transfer, is all of our targets ready?
 	foreach my $t( @{ $self->_connections } ) {
 		if ( $t->_state ne 'ready' ) {
@@ -155,6 +169,8 @@ sub _ready {
 
 sub _xferdone {
 	my( $self, $target, $file ) = @_;
+
+	$self->logger->debug( "(" . $target->name . ") finished xfer of file($file)" );
 
 	# Okay, move on to the next connection
 	$self->_current_connection( $self->_current_connection + 1 );
@@ -223,13 +239,13 @@ sub _xferdone {
   # Target 1: robots.txt
   # Target 2: robots.txt
   # Target 1: dir/dir/dir/file.txt
-  ä Target 2: dir/dir/dir/file.txt
+  # Target 2: dir/dir/dir/file.txt
   # ...
 
   $shotgun->shot;
 
   print "Success: ".($shotgun->success ? 'YES' : 'NO')."\n";
-  print "Error: ".$shotgun->error if (!$shotgun-success);
+  print "Error: ".$shotgun->error if (!$shotgun->success);
 
   my $other_shotgun = App::Shotgun->new(
     source => '/absolute/path',

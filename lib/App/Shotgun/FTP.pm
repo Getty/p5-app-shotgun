@@ -1,15 +1,21 @@
 package App::Shotgun::FTP;
+use strict;
+use warnings;
 
 # ABSTRACT: App::Shotgun handler for FTP targets
 
-#sub POE::Component::Client::FTP::DEBUG () { 1 };
-#sub POE::Component::Client::FTP::DEBUG_COMMAND () { 1 };
-#sub POE::Component::Client::FTP::DEBUG_DATA () { 1 };
+sub POE::Component::Client::FTP::DEBUG () { 1 };
+sub POE::Component::Client::FTP::DEBUG_COMMAND () { 1 };
+sub POE::Component::Client::FTP::DEBUG_DATA () { 1 };
 
-use MooseX::POE;
+use MooseX::POE::SweetArgs;
 use MooseX::Types::Path::Class;
 use IO::Handle;
 use POE::Component::Client::FTP;
+
+with qw(
+	MooseX::LogDispatch
+);
 
 has shotgun => (
 	isa => 'App::Shotgun',
@@ -19,7 +25,7 @@ has shotgun => (
 	handles => {
 		error => '_error',
 		ready => '_ready',
-		done => '_xferdone',
+		xferdone => '_xferdone',
 	},
 );
 
@@ -42,7 +48,7 @@ has hostname => (
 has port => (
 	isa => 'Int',
 	is => 'ro',
-	required => 1,
+	default => 21,
 );
 
 has usetls => (
@@ -77,7 +83,7 @@ has _file => (
 	coerce => 1,
 );
 has _filefh => (
-	isa => 'IO::Handle',
+	isa => 'Ref',
 	is => 'rw',
 );
 
@@ -104,6 +110,7 @@ has _state => (
 sub ftp {
 	my( $self, @args ) = @_;
 
+	$self->logger->debug( 'sending command(' . $args[0] . ') to ftpd with data(' . ( defined $args[1] ? $args[1] : '' ) . ')' );
 	$poe_kernel->post( $self->name, @args );
 
 	return;
@@ -144,6 +151,7 @@ event connected => sub {
 	my $self = shift;
 
 	# do nothing hah
+	$self->logger->debug( "connected" );
 
 	return;
 };
@@ -167,11 +175,14 @@ event login_error => sub {
 event authenticated => sub {
 	my $self = shift;
 
+	$self->logger->debug( "authenticated" );
+
 	# okay, change to the path for our transfer?
 	if ( $self->_has_path ) {
 		$self->ftp( 'cd', $self->path->stringify );
 	} else {
 		# we are now ready to transfer files
+		$self->logger->debug( "ready" );
 		$self->_state( 'ready' );
 		$self->ready( $self );
 	}
@@ -183,6 +194,7 @@ event cd => sub {
 	my $self = shift;
 
 	# we are now ready to transfer files
+	$self->logger->debug( "ready" );
 	$self->_state( 'ready' );
 	$self->ready( $self );
 
@@ -202,6 +214,8 @@ sub transfer {
 	my( $self, $file ) = @_;
 	$self->_file( $file );
 	$self->_state( 'xfer' );
+
+	$self->logger->debug( "starting transfer of $file" );
 
 	# Do we need to mkdir the file's path?
 	my $dir = $self->_file->dir->stringify;
@@ -224,6 +238,8 @@ sub transfer {
 event mkdir => sub {
 	my $self = shift;
 
+	$self->logger->debug( "MKDIR OK" );
+
 	# Okay, we are now ready to transfer the file
 	$self->ftp( 'type', 'I' );
 
@@ -234,8 +250,11 @@ event mkdir_error => sub {
 	my( $self, $code, $string ) = @_;
 
 	# Did the directory already exist?
-	if ( $code eq '521' ) {
+	# RFC says 521, wikipedia says 550
+	# tested with vsftpd 2.2.0 and it replied 550
+	if ( $code eq '521' or $code eq '550' ) {
 		# Okay, move on with the transfer
+		$self->logger->debug( "MKDIR already exists" );
 		$self->ftp( 'type', 'I' );
 	} else {
 		$self->error( $self, "MKDIR - $code $string" );
@@ -246,6 +265,8 @@ event mkdir_error => sub {
 
 event type => sub {
 	my $self = shift;
+
+	$self->logger->debug( "TYPE ok" );
 
 	# okay, we are done with the TYPE command, now we actually send the file!
 	$self->ftp( 'put', $self->_file->stringify );
@@ -272,6 +293,8 @@ event put_error => sub {
 event put_connected => sub {
 	my $self = shift;
 
+	$self->logger->debug( "PUT connected" );
+
 	# okay, we can send the first block of data!
 	my $path = Path::Class::Dir->new( $self->shotgun->source, $self->_file )->stringify;
 	if ( open( my $fh, '<', $path ) ) {
@@ -286,6 +309,8 @@ event put_connected => sub {
 
 event put_flushed => sub {
 	my $self = shift;
+
+	$self->logger->debug( "PUT flushed" );
 
 	# read the next block of data from the fh
 	my $buf;
@@ -314,7 +339,10 @@ event put_flushed => sub {
 event put_closed => sub {
 	my $self = shift;
 
+	$self->logger->debug( "PUT closed" );
+
 	# we're finally done with this transfer!
+	$self->_state( 'ready' );
 	$self->xferdone( $self, $self->_file );
 
 	return;

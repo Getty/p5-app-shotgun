@@ -5,6 +5,7 @@ use warnings;
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
 use MooseX::POE::SweetArgs;
+use MooseX::Types::Path::Class;
 use Cwd qw( getcwd );
 
 with qw(
@@ -53,7 +54,6 @@ has files => (
 	traits  => ['Array'],
 	is      => 'ro',
 	isa     => 'ArrayRef[Str]',
-	coerce => 1,
 	default => sub {
 		my $self = shift;
 		if ( $self->has_filelist ) {

@@ -18,7 +18,7 @@ has shotgun => (
 	},
 );
 
-has type => (
+has _type => (
 	isa => 'Str',
 	is => 'ro',
 	lazy => 1,
@@ -47,7 +47,7 @@ has name => (
 	lazy => 1,
 	default => sub {
 		my $self = shift;
-		return $self->type . " " . $self->hostname;
+		return $self->_type . " " . $self->hostname;
 	},
 );
 
@@ -77,7 +77,7 @@ has path => (
 	isa => 'Path::Class::Dir',
 	is => 'ro',
 	coerce => 1,
-	default => Path::Class::Dir->new( '/' ),
+	default => sub { Path::Class::Dir->new( '/' ) },
 );
 
 # the state this target is in

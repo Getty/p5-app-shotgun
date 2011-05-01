@@ -58,16 +58,22 @@ has _knowndirs => (
 	isa => 'HashRef[Str]',
 	is => 'ro',
 	default => sub {
-		{
+		return {
 			# obviously the root exists... :)
-			'/' => undef,
-		}
+			'/' => 1,
+		};
 	},
 	handles => {
 		known_dir => 'exists',
-		add_known_dir => 'set',
 	},
 );
+
+sub add_known_dir {
+	my( $self, $path ) = @_;
+
+	$self->_knowndirs->{ $path } = 1;
+	return;
+}
 
 # convenience function to simplify passing events to poco-ftp
 sub ftp {

@@ -12,11 +12,27 @@ with qw(
 	MooseX::LogDispatch
 );
 
-# TODO unimplemented
+# TODO unimplemented stuff
+
+## log our transfers to a file somewhere
 #has transferlog => (
 #	isa => 'Str',
 #	is => 'ro',
 #	predicate => 'has_transferlog',
+#);
+#
+## enable full parallel uploads to ALL targets at the same time
+#has parallel => (
+#	isa => 'Bool',
+#	is => 'ro',
+#	default => 0,
+#);
+#
+## get file list from the source, recursively ( ls -lR basically )
+#has filerecursive => (
+#	isa => 'Bool',
+#	is => 'ro',
+#	default => 0,
 #);
 
 has source => (
@@ -31,10 +47,13 @@ has filelist => (
 	predicate => 'has_filelist',
 );
 
+# TODO we need to make sure that the files is NEVER a relative path
+# as it will seriously fuck up the logic here
 has files => (
 	traits  => ['Array'],
 	is      => 'ro',
 	isa     => 'ArrayRef[Str]',
+	coerce => 1,
 	default => sub {
 		my $self = shift;
 		if ( $self->has_filelist ) {
@@ -56,20 +75,14 @@ has files => (
 );
 
 has targets => (
+	traits => ['NoGetopt'],
 	is      => 'ro',
 	isa     => 'ArrayRef[HashRef[Str]]',
 	required => 1,
 );
 
-# the state we are in ( start, xfer )
-has _state => (
-	isa => 'Str',
-	is => 'rw',
-	default => 'start',
-);
-
-has _connections => (
-	traits => ['Array'],
+has connections => (
+	traits => ['Array','NoGetopt'],
 	isa => 'ArrayRef',
 	is => 'ro',
 	default => sub { [] },
@@ -78,19 +91,28 @@ has _connections => (
 	},
 );
 
-has _current_connection => (
+has current_connection => (
+	traits => ['NoGetopt'],
 	isa => 'Int',
 	is => 'rw',
 	default => 0,
 );
 
+has current_file => (
+	traits => ['NoGetopt'],
+	isa => 'Path::Class::File',
+	is => 'rw',
+	coerce => 1,
+);
+
 has success => (
+	traits => ['NoGetopt'],
 	isa => 'Bool',
 	is => 'rw',
 	default => 0,
 );
 
-has error => (
+has _errors => (
 	traits => ['Array'],
 	isa => 'ArrayRef[Str]',
 	is => 'ro',
@@ -100,10 +122,18 @@ has error => (
 	},
 );
 
+sub error {
+	my $self = shift;
+
+	return join( "\n", @{ $self->_errors }, "\n" );
+}
+
 sub shot {
 	my $self = shift;
 
 	$self->logger->debug( "Starting SHOTGUN" );
+
+	die "No targets defined" if ! scalar @{ $self->targets };
 
 	# construct all of our connection targets
 	foreach my $t ( @{ $self->targets } ) {
@@ -111,12 +141,17 @@ sub shot {
 			die "type missing from target info";
 		}
 
+		# convert the path to an absolute path
+		if ( exists $t->{'path'} ) {
+			$t->{'path'} = Path::Class::Dir->new( $t->{'path'} )->absolute( '/' );
+		}
+
 		my $type = delete $t->{'type'};
-		eval "require App::Shotgun::$type";
+		eval "require App::Shotgun::Target::$type";
 		if ( $@ ) {
 			die "Unknown target type: $type - $@";
 		} else {
-			my $connection = "App::Shotgun::$type"->new( %$t, shotgun => $self );
+			my $connection = "App::Shotgun::Target::$type"->new( %$t, shotgun => $self );
 			$self->new_connection( $connection );
 		}
 	}
@@ -129,18 +164,12 @@ sub shot {
 }
 
 sub _error {
-	my( $self, $target, $error ) = @_;
+	my( $self, $error ) = @_;
 
-	$self->logger->debug( "ERROR from(" . $target->name . "): $error" );
-
-	if ( $self->_state eq 'start' ) {
-		$self->_add_error( "Error connecting to(" . $target->name . "): $error" );
-	} else {
-		$self->_add_error( "Error transferring file(" . $target->_file . ") to(" . $target->name . "): $error" );
-	}
+	$self->logger->debug( "ERROR: $error" );
 
 	# Tell all of our targets to shutdown
-	foreach my $t ( @{ $self->_connections } ) {
+	foreach my $t ( @{ $self->connections } ) {
 		$t->shutdown;
 	}
 
@@ -150,19 +179,22 @@ sub _error {
 sub _ready {
 	my( $self, $target ) = @_;
 
-	$self->logger->debug( "(" . $target->name . ") is ready" );
+	# target is ready, set it's state
+	# convenience, really - so I don't have to type this in all the targets :)
+	$self->logger->debug( "Target (" . $target->name . ") is ready" );
+	$target->state( 'ready' );
 
-	# $target is now ready for transfer, is all of our targets ready?
-	foreach my $t( @{ $self->_connections } ) {
-		if ( $t->_state ne 'ready' ) {
+	# $target is now ready for transfer, are all of our targets ready?
+	foreach my $t( @{ $self->connections } ) {
+		if ( $t->state ne 'ready' ) {
 			return;
 		}
 	}
 
 	# got here, all of our targets are ready!
-	# transfer the first file
-	$self->_state( 'xfer' );
-	$self->_connections->[ $self->_current_connection ]->transfer( $self->next_file );
+	# start the process by transferring the first file!
+	$self->current_file( $self->next_file );
+	$self->connections->[ $self->current_connection ]->transfer;
 
 	return;
 }
@@ -170,29 +202,33 @@ sub _ready {
 sub _xferdone {
 	my( $self, $target, $file ) = @_;
 
-	$self->logger->debug( "(" . $target->name . ") finished xfer of file($file)" );
+	# target finished transferring $file
+	# convenience, really - so I don't have to type this in all the targets :)
+	$self->logger->debug( "Target (" . $target->name . ") finished transferring $file" );
+	$target->state( 'ready' );
 
 	# Okay, move on to the next connection
-	$self->_current_connection( $self->_current_connection + 1 );
-	if ( ! defined $self->_connections->[ $self->_current_connection ] ) {
+	$self->current_connection( $self->current_connection + 1 );
+	if ( ! defined $self->connections->[ $self->current_connection ] ) {
 		# finished sending this file to all connections!
 		# do we have more files to send?
 		if ( $self->num_files ) {
 			# process the next file
-			$self->_current_connection( 0 );
-			$self->_connections->[ $self->_current_connection ]->transfer( $self->next_file );
+			$self->current_connection( 0 );
+			$self->current_file( $self->next_file );
+			$self->connections->[ $self->current_connection ]->transfer;
 		} else {
 			# SHOTGUN DONE
 			$self->success( 1 );
 
 			# Tell all of our targets to shutdown
-			foreach my $t ( @{ $self->_connections } ) {
+			foreach my $t ( @{ $self->connections } ) {
 				$t->shutdown;
 			}
 		}
 	} else {
 		# Tell the next connection to process the file
-		$self->_connections->[ $self->_current_connection ]->transfer( $file );
+		$self->connections->[ $self->current_connection ]->transfer;
 	}
 
 	return;
@@ -208,6 +244,7 @@ sub _xferdone {
     transferlog => 'transfer.log', # optional
     source => '../relative/path',
     files => [
+      # NEVER NEVER EVER EVER use relative paths here!
       'robots.txt',
       'dir/dir/dir/file.txt',
       'category/index.html',
@@ -215,20 +252,21 @@ sub _xferdone {
     ],
     targets => [
       {
+        type => 'FTP',
         name => 'Target 1', # optional
 	path => 'htdocs/', # optional
-        type => 'FTP',
         hostname => 'my.local',
+        port => 789 # optional
         username => 'notfor',
         password => 'you321',
       },
       {
+        type => 'SFTP',
         name => 'Target 2', # optional
-        type => 'SCP',
-		dir => '/tmp/testenv', # optional
-		# Type specific:
+	path => '/tmp/testenv', # optional
         hostname => 'myother.local',
         username => 'notfor',
+
         # prepared key authentifications are just working
         # probably more options for configuring ssh, like alternative private key
       },
@@ -256,6 +294,7 @@ sub _xferdone {
 
 This module uploads the filelist textfile given via B<filelist> or the filelist given as array via B<files> to all given B<targets>.
 It uploads file after file, to target after target, that means, first file will get uploaded to all target, and if they all are
-successful done, the next file will be uploaded.
+successful done, the next file will be uploaded. This module doesn't do any "smart" things like compare filesize/modification time/etc and
+just uploads the files. Hence the name "shotgun" which is appropriate :)
 
 For first the module is made to try again very often but will not continue on fail and close with an exit code above 0.

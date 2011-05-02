@@ -350,12 +350,6 @@ sub do_read_file {
 	return;
 }
 
-event put_closed => sub {
-	my( $self, $path ) = @_;
-
-	return;
-};
-
 event put => sub {
 	my( $self, $path ) = @_;
 

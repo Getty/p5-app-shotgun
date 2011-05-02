@@ -117,7 +117,7 @@ has success => (
 );
 
 has _errors => (
-	traits => ['Array'],
+	traits => ['Array', 'NoGetopt'],
 	isa => 'ArrayRef[Str]',
 	is => 'ro',
 	default => sub { [] },

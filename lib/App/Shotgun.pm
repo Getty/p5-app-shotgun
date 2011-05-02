@@ -86,6 +86,7 @@ has connections => (
 	isa => 'ArrayRef',
 	is => 'ro',
 	default => sub { [] },
+	init_arg => undef,
 	handles => {
 		new_connection => 'push',
 	},
@@ -96,6 +97,7 @@ has current_connection => (
 	isa => 'Int',
 	is => 'rw',
 	default => 0,
+	init_arg => undef,
 );
 
 has current_file => (
@@ -103,6 +105,7 @@ has current_file => (
 	isa => 'Path::Class::File',
 	is => 'rw',
 	coerce => 1,
+	init_arg => undef,
 );
 
 has success => (
@@ -110,6 +113,7 @@ has success => (
 	isa => 'Bool',
 	is => 'rw',
 	default => 0,
+	init_arg => undef,
 );
 
 has _errors => (
@@ -117,6 +121,7 @@ has _errors => (
 	isa => 'ArrayRef[Str]',
 	is => 'ro',
 	default => sub { [] },
+	init_arg => undef,
 	handles => {
 		_add_error => 'push',
 	},
@@ -200,11 +205,11 @@ sub _ready {
 }
 
 sub _xferdone {
-	my( $self, $target, $file ) = @_;
+	my( $self, $target ) = @_;
 
-	# target finished transferring $file
+	# target finished transferring
 	# convenience, really - so I don't have to type this in all the targets :)
-	$self->logger->debug( "Target (" . $target->name . ") finished transferring $file" );
+	$self->logger->debug( "Target (" . $target->name . ") finished transferring " . $self->current_file );
 	$target->state( 'ready' );
 
 	# Okay, move on to the next connection
@@ -234,6 +239,8 @@ sub _xferdone {
 	return;
 }
 
+no MooseX::POE::SweetArgs;
+__PACKAGE__->meta->make_immutable;
 1;
 
 =head1 SYNOPSIS

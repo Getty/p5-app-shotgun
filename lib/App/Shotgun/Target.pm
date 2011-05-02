@@ -22,6 +22,7 @@ has _type => (
 	isa => 'Str',
 	is => 'ro',
 	lazy => 1,
+	init_arg => undef,
 	default => sub {
 		my $self = shift;
 		if ( ref( $self ) =~ /::([^\:]+)$/ ) {
@@ -93,6 +94,7 @@ has path => (
 		isa => enum( [ qw( init ready testdir dir xfer ) ] ),
 		is => 'rw',
 		default => 'init',
+		init_arg => undef,
 	);
 
 	no Moose::Util::TypeConstraints;

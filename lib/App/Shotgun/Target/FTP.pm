@@ -4,13 +4,11 @@ use warnings;
 
 # ABSTRACT: App::Shotgun target for FTP servers
 
-sub POE::Component::Client::FTP::DEBUG () { 1 };
-sub POE::Component::Client::FTP::DEBUG_COMMAND () { 1 };
-sub POE::Component::Client::FTP::DEBUG_DATA () { 1 };
+sub POE::Component::Client::SimpleFTP::DEBUG () { 1 };
 
 use MooseX::POE::SweetArgs;
 use MooseX::Types::Path::Class;
-use POE::Component::Client::FTP;
+use POE::Component::Client::SimpleFTP;
 
 with qw(
 	App::Shotgun::Target
@@ -45,11 +43,13 @@ has password => (
 has _filefh => (
 	isa => 'Ref',
 	is => 'rw',
+	init_arg => undef,
 );
 has _filedirs => (
 	isa => 'ArrayRef[Str]',
 	is => 'rw',
 	default => sub { [] },
+	init_arg => undef,
 );
 
 # directories we know that is on the ftpd
@@ -57,6 +57,7 @@ has _knowndirs => (
 	traits => ['Hash'],
 	isa => 'HashRef[Str]',
 	is => 'ro',
+	init_arg => undef,
 	default => sub {
 		return {
 			# obviously the root exists... :)
@@ -104,18 +105,14 @@ sub shutdown {
 sub START {
 	my $self = shift;
 
-	POE::Component::Client::FTP->spawn(
-		Alias => $self->name,
+	POE::Component::Client::SimpleFTP->new(
+		alias => $self->name,
 
-		RemoteAddr => $self->hostname,
-		RemotePort => $self->port,
-		Username => $self->username,
-		Password => $self->password,
-		( $self->usetls ? ( TLS => 1, TLSData => 1 ) : () ),
-		ConnectionMode => FTP_PASSIVE, # TODO should we enable control of this?
-		Timeout => 120, # TODO is 2m a reasonable number?
-
-		Events => [ qw( all ) ],
+		remote_addr => $self->hostname,
+		remote_port => $self->port,
+		username => $self->username,
+		password => $self->password,
+		( $self->usetls ? ( tls_cmd => 1, tls_data => 1 ) : () ),
 	);
 
 	# now we just wait for the connection to succeed/fail
@@ -262,9 +259,16 @@ event cd_error => sub {
 		#ftp>
 		$self->_build_filedirs;
 
-		# we now cd to the first element
-		$self->state( 'dir' );
-		$self->ftp( 'cd', $self->_filedirs->[0] );
+		# if there is only 1 path, we've "tested" it and no need to re-cd into it!
+		if ( scalar @{ $self->_filedirs } == 1 ) {
+			# we need to mkdir this one!
+			$self->state( 'dir' );
+			$self->ftp( 'mkdir', $self->_filedirs->[0] );
+		} else {
+			# we now cd to the first element
+			$self->state( 'dir' );
+			$self->ftp( 'cd', $self->_filedirs->[0] );
+		}
 	} elsif ( $self->state eq 'dir' ) {
 		# we need to mkdir this one!
 		$self->ftp( 'mkdir', $self->_filedirs->[0] );
@@ -322,9 +326,18 @@ event type_error => sub {
 };
 
 event put_error => sub {
-	my( $self, $code, $string, $file ) = @_;
+	my( $self, $code, $string ) = @_;
 
 	$self->error( "[" . $self->name . "] XFER error: $code $string" );
+
+	return;
+};
+
+event put_server => sub {
+	my $self = shift;
+
+	# do nothing hah
+	$self->logger->debug( "PUT connected" );
 
 	return;
 };
@@ -386,10 +399,18 @@ event put_closed => sub {
 
 	$self->logger->debug( "PUT closed" );
 
+	return;
+};
+
+event put_done => sub {
+	my $self = shift;
+
 	# we're finally done with this transfer!
 	$self->xferdone( $self );
 
 	return;
 };
 
+no MooseX::POE::SweetArgs;
+__PACKAGE__->meta->make_immutable;
 1;

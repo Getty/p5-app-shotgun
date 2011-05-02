@@ -172,6 +172,7 @@ sub _error {
 	my( $self, $error ) = @_;
 
 	$self->logger->debug( "ERROR: $error" );
+	$self->_add_error( $error );
 
 	# Tell all of our targets to shutdown
 	foreach my $t ( @{ $self->connections } ) {
@@ -186,7 +187,7 @@ sub _ready {
 
 	# target is ready, set it's state
 	# convenience, really - so I don't have to type this in all the targets :)
-	$self->logger->debug( "Target (" . $target->name . ") is ready" );
+	$self->logger->debug( "Target [" . $target->name . "] is ready" );
 	$target->state( 'ready' );
 
 	# $target is now ready for transfer, are all of our targets ready?
@@ -209,7 +210,7 @@ sub _xferdone {
 
 	# target finished transferring
 	# convenience, really - so I don't have to type this in all the targets :)
-	$self->logger->debug( "Target (" . $target->name . ") finished transferring " . $self->current_file );
+	$self->logger->debug( "Target [" . $target->name . "] finished transferring '" . $self->current_file . "'" );
 	$target->state( 'ready' );
 
 	# Okay, move on to the next connection

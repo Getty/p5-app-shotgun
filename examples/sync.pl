@@ -18,6 +18,21 @@ my $shotgun = App::Shotgun->new(
 	targets => [
 		{
 			type => 'FTP',
+			path => '/a',
+			hostname => '192.168.0.55',
+			username => 'apoc',
+			password => 'apoc',
+		},
+		{
+			type => 'FTP',
+			path => '/b',
+			hostname => '192.168.0.55',
+			username => 'apoc',
+			password => 'apoc',
+		},
+		{
+			type => 'FTP',
+			path => '/c',
 			hostname => '192.168.0.55',
 			username => 'apoc',
 			password => 'apoc',

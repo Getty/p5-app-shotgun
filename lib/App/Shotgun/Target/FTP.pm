@@ -4,7 +4,7 @@ use warnings;
 
 # ABSTRACT: App::Shotgun target for FTP servers
 
-sub POE::Component::Client::SimpleFTP::DEBUG () { 1 };
+#sub POE::Component::Client::SimpleFTP::DEBUG () { 1 };
 
 use MooseX::POE::SweetArgs;
 use MooseX::Types::Path::Class;
@@ -80,13 +80,6 @@ sub add_known_dir {
 sub ftp {
 	my( $self, @args ) = @_;
 
-	# don't print the actual data we upload, as it can be binary or whatever
-	if ( $args[0] ne 'put_data' ) {
-		$self->logger->debug( 'sending command(' . $args[0] . ') to ftpd with data(' . ( defined $args[1] ? $args[1] : '' ) . ')' );
-	} else {
-		$self->logger->debug( 'sending command(' . $args[0] . ') to ftpd' );
-	}
-
 	$poe_kernel->post( $self->name, @args );
 
 	return;
@@ -126,7 +119,7 @@ sub transfer {
 	my $self = shift;
 	$self->state( 'xfer' );
 
-	$self->logger->debug( "starting transfer of " . $self->file );
+	$self->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );
 
 	# Do we need to mkdir the file's path?
 	my $dir = $self->file->dir->absolute( $self->path )->stringify;
@@ -139,7 +132,7 @@ sub transfer {
 	}
 
 	# Okay, we are now ready to transfer the file
-	$self->ftp( 'type', 'I' );
+	$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
 
 	return;
 };
@@ -148,7 +141,6 @@ event connected => sub {
 	my $self = shift;
 
 	# do nothing hah
-	$self->logger->debug( "connected" );
 
 	return;
 };
@@ -164,15 +156,13 @@ event connect_error => sub {
 event login_error => sub {
 	my( $self, $code, $string ) = @_;
 
-	$self->error( "[" . $self->name . "] AUTH error: $code $string" );
+	$self->error( "[" . $self->name . "] LOGIN error: $code $string" );
 
 	return;
 };
 
 event authenticated => sub {
 	my $self = shift;
-
-	$self->logger->debug( "authenticated" );
 
 	# okay, change to the path for our transfer?
 	if ( $self->path->stringify ne '/' ) {
@@ -208,7 +198,7 @@ sub _build_filedirs {
 }
 
 event cd => sub {
-	my $self = shift;
+	my( $self, $path ) = @_;
 
 	if ( $self->state eq 'init' ) {
 		# we are now ready to transfer files
@@ -242,12 +232,10 @@ event cd => sub {
 };
 
 event cd_error => sub {
-	my( $self, $code, $string ) = @_;
-
-	$self->logger->debug( "CHDIR error: $code $string" );
+	my( $self, $code, $string, $path ) = @_;
 
 	if ( $self->state eq 'init' ) {
-		$self->error( "[" . $self->name . "] CHDIR error: $code $string" );
+		$self->error( "[" . $self->name . "] Error changing to initial path '$path': $code $string" );
 	} elsif ( $self->state eq 'testdir' ) {
 		# we have to cd/mkdir EACH directory path to be compatible with many ftpds
 		# we store the full path here, so we can always be sure it's a valid path ( CWD issues )
@@ -280,9 +268,7 @@ event cd_error => sub {
 };
 
 event mkdir => sub {
-	my $self = shift;
-
-	$self->logger->debug( "MKDIR OK" );
+	my( $self, $path ) = @_;
 
 	if ( $self->state eq 'dir' ) {
 		# mkdir the next directory in the filedirs?
@@ -301,44 +287,40 @@ event mkdir => sub {
 };
 
 event mkdir_error => sub {
-	my( $self, $code, $string ) = @_;
+	my( $self, $code, $string, $path ) = @_;
 
-	$self->error( "[" . $self->name . "] MKDIR error: $code $string" );
+	$self->error( "[" . $self->name . "] MKDIR($path) error: $code $string" );
 
 	return;
 };
 
 event put_error => sub {
-	my( $self, $code, $string ) = @_;
+	my( $self, $code, $string, $path ) = @_;
 
-	$self->error( "[" . $self->name . "] XFER error: $code $string" );
+	$self->error( "[" . $self->name . "] XFER($path) error: $code $string" );
 
 	return;
 };
 
 event put_connected => sub {
-	my $self = shift;
-
-	$self->logger->debug( "PUT connected" );
+	my( $self, $path ) = @_;
 
 	# okay, we can send the first block of data!
-	my $path = $self->file->absolute( $self->shotgun->source )->stringify;
-	if ( open( my $fh, '<', $path ) ) {
+	my $localpath = $self->file->absolute( $self->shotgun->source )->stringify;
+	if ( open( my $fh, '<', $localpath ) ) {
 		$self->_filefh( $fh );
 
 		# send the first chunk
 		$self->do_read_file;
 	} else {
-		$self->error( "[" . $self->name . "] XFER error: unable to open $path: $!" );
+		$self->error( "[" . $self->name . "] XFER($path) error: unable to open $localpath: $!" );
 	}
 
 	return;
 };
 
 event put_flushed => sub {
-	my $self = shift;
-
-	$self->logger->debug( "PUT flushed" );
+	my( $self, $path ) = @_;
 
 	# read the next chunk of data from the fh
 	$self->do_read_file;
@@ -369,15 +351,13 @@ sub do_read_file {
 }
 
 event put_closed => sub {
-	my $self = shift;
-
-	$self->logger->debug( "PUT closed" );
+	my( $self, $path ) = @_;
 
 	return;
 };
 
-event put_done => sub {
-	my $self = shift;
+event put => sub {
+	my( $self, $path ) = @_;
 
 	# we're finally done with this transfer!
 	$self->xferdone( $self );

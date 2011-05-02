@@ -38,7 +38,7 @@ has _type => (
 The name of the target. Set this to something descriptive so you can figure out what went wrong in the logs!
 
 The default is: target_type hostname
-Example: "FTP foo.com"
+Example: "FTP::foo.com:21::/"
 
 =cut
 
@@ -48,7 +48,12 @@ has name => (
 	lazy => 1,
 	default => sub {
 		my $self = shift;
-		return $self->_type . " " . $self->hostname;
+		my $str = $self->_type . "::" . $self->hostname;
+		if ( $self->can( 'port' ) ) {
+			$str .= ":" . $self->port;
+		}
+		$str .= "::" . $self->path;
+		return $str;
 	},
 );
 

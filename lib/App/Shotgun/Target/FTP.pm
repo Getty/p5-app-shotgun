@@ -119,6 +119,8 @@ sub START {
 	return;
 }
 
+event _child => sub { return };
+
 # actually transfer $file from the local dir to the remote
 sub transfer {
 	my $self = shift;
@@ -221,7 +223,7 @@ event cd => sub {
 
 		# Okay, actually start the transfer!
 		$self->state( 'xfer' );
-		$self->ftp( 'type', 'I' );
+		$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
 	} elsif ( $self->state eq 'dir' ) {
 		# Okay, this dir is ok, move on to the next one
 		$self->add_known_dir( shift @{ $self->_filedirs } );
@@ -230,7 +232,7 @@ event cd => sub {
 		} else {
 			# finally validated the entire dir path
 			$self->state( 'xfer' );
-			$self->ftp( 'type', 'I' );
+			$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
 		}
 	} else {
 		die "(CD) unknown state: " . $self->state;
@@ -289,7 +291,7 @@ event mkdir => sub {
 			$self->ftp( 'mkdir', $self->_filedirs->[0] );
 		} else {
 			# Okay, finally done creating the entire path to the file!
-			$self->ftp( 'type', 'I' );
+			$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
 		}
 	} else {
 		die "(MKDIR) unknown state: " . $self->state;
@@ -306,38 +308,10 @@ event mkdir_error => sub {
 	return;
 };
 
-event type => sub {
-	my $self = shift;
-
-	$self->logger->debug( "TYPE ok" );
-
-	# okay, we are done with the TYPE command, now we actually send the file!
-	$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
-
-	return;
-};
-
-event type_error => sub {
-	my( $self, $code, $string ) = @_;
-
-	$self->error( "[" . $self->name . "] XFER error: $code $string" );
-
-	return;
-};
-
 event put_error => sub {
 	my( $self, $code, $string ) = @_;
 
 	$self->error( "[" . $self->name . "] XFER error: $code $string" );
-
-	return;
-};
-
-event put_server => sub {
-	my $self = shift;
-
-	# do nothing hah
-	$self->logger->debug( "PUT connected" );
 
 	return;
 };

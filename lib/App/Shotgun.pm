@@ -4,7 +4,7 @@ use warnings;
 
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
-use MooseX::POE::SweetArgs;
+use Moose;
 use MooseX::Types::Path::Class;
 use Cwd qw( getcwd );
 
@@ -239,7 +239,7 @@ sub _xferdone {
 	return;
 }
 
-no MooseX::POE::SweetArgs;
+no Moose;
 __PACKAGE__->meta->make_immutable;
 1;
 

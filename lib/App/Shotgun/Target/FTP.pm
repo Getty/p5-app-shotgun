@@ -198,7 +198,7 @@ sub _build_filedirs {
 }
 
 event cd => sub {
-	my( $self, $path ) = @_;
+	my( $self, $code, $reply, $path ) = @_;
 
 	if ( $self->state eq 'init' ) {
 		# we are now ready to transfer files
@@ -232,10 +232,10 @@ event cd => sub {
 };
 
 event cd_error => sub {
-	my( $self, $code, $string, $path ) = @_;
+	my( $self, $code, $reply, $path ) = @_;
 
 	if ( $self->state eq 'init' ) {
-		$self->error( "[" . $self->name . "] Error changing to initial path '$path': $code $string" );
+		$self->error( "[" . $self->name . "] Error changing to initial path '$path': $code $reply" );
 	} elsif ( $self->state eq 'testdir' ) {
 		# we have to cd/mkdir EACH directory path to be compatible with many ftpds
 		# we store the full path here, so we can always be sure it's a valid path ( CWD issues )
@@ -268,7 +268,7 @@ event cd_error => sub {
 };
 
 event mkdir => sub {
-	my( $self, $path ) = @_;
+	my( $self, $code, $reply, $path ) = @_;
 
 	if ( $self->state eq 'dir' ) {
 		# mkdir the next directory in the filedirs?
@@ -287,17 +287,17 @@ event mkdir => sub {
 };
 
 event mkdir_error => sub {
-	my( $self, $code, $string, $path ) = @_;
+	my( $self, $code, $reply, $path ) = @_;
 
-	$self->error( "[" . $self->name . "] MKDIR($path) error: $code $string" );
+	$self->error( "[" . $self->name . "] MKDIR($path) error: $code $reply" );
 
 	return;
 };
 
 event put_error => sub {
-	my( $self, $code, $string, $path ) = @_;
+	my( $self, $code, $reply, $path ) = @_;
 
-	$self->error( "[" . $self->name . "] XFER($path) error: $code $string" );
+	$self->error( "[" . $self->name . "] XFER($path) error: $code $reply" );
 
 	return;
 };
@@ -351,7 +351,7 @@ sub do_read_file {
 }
 
 event put => sub {
-	my( $self, $path ) = @_;
+	my( $self, $code, $reply, $path ) = @_;
 
 	# we're finally done with this transfer!
 	$self->xferdone( $self );

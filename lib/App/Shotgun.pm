@@ -116,22 +116,11 @@ has success => (
 	init_arg => undef,
 );
 
-has _errors => (
-	traits => ['Array', 'NoGetopt'],
-	isa => 'ArrayRef[Str]',
-	is => 'ro',
-	default => sub { [] },
+has error => (
+	isa => 'Str',
+	is => 'rw',
 	init_arg => undef,
-	handles => {
-		_add_error => 'push',
-	},
 );
-
-sub error {
-	my $self = shift;
-
-	return join( "\n", @{ $self->_errors }, "\n" );
-}
 
 sub shot {
 	my $self = shift;
@@ -171,8 +160,11 @@ sub shot {
 sub _error {
 	my( $self, $error ) = @_;
 
+	# ignore stacked errors
+	return if defined $self->error;
+
 	$self->logger->debug( "ERROR: $error" );
-	$self->_add_error( $error );
+	$self->error( $error . "\n" );
 
 	# Tell all of our targets to shutdown
 	foreach my $t ( @{ $self->connections } ) {

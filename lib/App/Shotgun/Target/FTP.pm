@@ -311,7 +311,7 @@ event put_connected => sub {
 		$self->_filefh( $fh );
 
 		# send the first chunk
-		$self->do_read_file;
+		$self->send_chunk;
 	} else {
 		$self->error( "[" . $self->name . "] XFER($path) error: unable to open $localpath: $!" );
 	}
@@ -323,12 +323,12 @@ event put_flushed => sub {
 	my( $self, $path ) = @_;
 
 	# read the next chunk of data from the fh
-	$self->do_read_file;
+	$self->send_chunk;
 
 	return;
 };
 
-sub do_read_file {
+sub send_chunk {
 	my $self = shift;
 
 	my $buf;

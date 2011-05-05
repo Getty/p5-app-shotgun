@@ -7,8 +7,9 @@ use warnings;
 #sub POE::Component::Client::SimpleFTP::DEBUG () { 1 };
 
 use MooseX::POE::SweetArgs;
-use MooseX::Types::Path::Class;
 use POE::Component::Client::SimpleFTP;
+
+use Path::Class::Dir;
 
 with qw(
 	App::Shotgun::Target
@@ -112,12 +113,12 @@ sub START {
 	return;
 }
 
+event _parent => sub { return };
 event _child => sub { return };
 
 # actually transfer $file from the local dir to the remote
 sub transfer {
 	my $self = shift;
-	$self->state( 'xfer' );
 
 	$self->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );
 
@@ -132,10 +133,17 @@ sub transfer {
 	}
 
 	# Okay, we are now ready to transfer the file
-	$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
+	$self->process_put;
 
 	return;
 };
+
+sub process_put {
+	my $self = shift;
+
+	$self->state( 'xfer' );
+	$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
+}
 
 event connected => sub {
 	my $self = shift;
@@ -212,8 +220,7 @@ event cd => sub {
 		}
 
 		# Okay, actually start the transfer!
-		$self->state( 'xfer' );
-		$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
+		$self->process_put;
 	} elsif ( $self->state eq 'dir' ) {
 		# Okay, this dir is ok, move on to the next one
 		$self->add_known_dir( shift @{ $self->_filedirs } );
@@ -221,8 +228,7 @@ event cd => sub {
 			$self->ftp( 'cd', $self->_filedirs->[0] );
 		} else {
 			# finally validated the entire dir path
-			$self->state( 'xfer' );
-			$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
+			$self->process_put;
 		}
 	} else {
 		die "(CD) unknown state: " . $self->state;
@@ -262,6 +268,8 @@ event cd_error => sub {
 	} elsif ( $self->state eq 'dir' ) {
 		# we need to mkdir this one!
 		$self->ftp( 'mkdir', $self->_filedirs->[0] );
+	} else {
+		die "(CD_ERROR) unknown state: " . $self->state;
 	}
 
 	return;
@@ -277,7 +285,7 @@ event mkdir => sub {
 			$self->ftp( 'mkdir', $self->_filedirs->[0] );
 		} else {
 			# Okay, finally done creating the entire path to the file!
-			$self->ftp( 'put', $self->file->absolute( $self->path )->stringify );
+			$self->process_put;
 		}
 	} else {
 		die "(MKDIR) unknown state: " . $self->state;

@@ -117,7 +117,7 @@ event _parent => sub { return };
 event _child => sub { return };
 
 # actually transfer $file from the local dir to the remote
-sub transfer {
+event transfer => sub {
 	my $self = shift;
 
 	$self->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );

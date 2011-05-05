@@ -192,7 +192,7 @@ sub _ready {
 	# got here, all of our targets are ready!
 	# start the process by transferring the first file!
 	$self->current_file( $self->next_file );
-	$self->connections->[ $self->current_connection ]->transfer;
+	$self->connections->[ $self->current_connection ]->yield( 'transfer' );
 
 	return;
 }
@@ -214,7 +214,7 @@ sub _xferdone {
 			# process the next file
 			$self->current_connection( 0 );
 			$self->current_file( $self->next_file );
-			$self->connections->[ $self->current_connection ]->transfer;
+			$self->connections->[ $self->current_connection ]->yield( 'transfer' );
 		} else {
 			# SHOTGUN DONE
 			$self->success( 1 );
@@ -226,7 +226,7 @@ sub _xferdone {
 		}
 	} else {
 		# Tell the next connection to process the file
-		$self->connections->[ $self->current_connection ]->transfer;
+		$self->connections->[ $self->current_connection ]->yield( 'transfer' );
 	}
 
 	return;

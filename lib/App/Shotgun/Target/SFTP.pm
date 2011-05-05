@@ -137,7 +137,7 @@ event _parent => sub { return };
 event _child => sub { return };
 
 # actually transfer $file from the local dir to the remote
-sub transfer {
+event transfer => sub {
 	my $self = shift;
 	$self->state( 'xfer' );
 

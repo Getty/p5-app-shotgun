@@ -105,7 +105,7 @@ sub START {
 		],
 		'alias'			=> $self->name,
 
-		( 'debug' => 1, 'error' => 'sftp_generic_error' ),
+#		( 'debug' => 1, 'error' => 'sftp_generic_error' ),
 	) );
 
 	# check for connection error
@@ -177,9 +177,6 @@ sub process_put {
 event sftp_connect => sub {
 	my( $self, $response ) = @_;
 
-use Data::Dumper;
-warn Dumper( $response );
-
 	# Did we get an error?
 	if ( ! $response->{'result'}[0] ) {
 		# set our cwd so we can initiate the transfer
@@ -193,9 +190,6 @@ warn Dumper( $response );
 
 event sftp_setcwd => sub {
 	my( $self, $response ) = @_;
-
-use Data::Dumper;
-warn Dumper( $response );
 
 	if ( $self->state eq 'init' ) {
 		# success?
@@ -257,9 +251,6 @@ warn Dumper( $response );
 event sftp_setcwd_error => sub {
 	my( $self, $response ) = @_;
 
-use Data::Dumper;
-warn Dumper( $response );
-
 	$self->error( "[" . $self->name . "] Error changing to initial path '" . $response->{'data'} . "': " . $response->{'result'}[0] );
 
 	return;
@@ -290,16 +281,12 @@ sub _build_filedirs {
 event sftp_mkdir => sub {
 	my( $self, $response ) = @_;
 
-use Data::Dumper;
-warn Dumper( $response );
-
 	if ( $self->state eq 'dir' ) {
 		# success?
 		if ( $response->{'result'}[0] ) {
 			# mkdir the next directory in the filedirs?
 			$self->add_known_dir( shift @{ $self->_filedirs } );
 			if ( defined $self->_filedirs->[0] ) {
-				$self->command_data(  );
 				$self->sftp->mkdir( { 'event' => 'sftp_mkdir', 'data' => $self->_filedirs->[0] }, $self->_filedirs->[0] );
 			} else {
 				# Okay, finally done creating the entire path to the file!
@@ -318,9 +305,6 @@ warn Dumper( $response );
 event sftp_mkdir_error => sub {
 	my( $self, $response ) = @_;
 
-use Data::Dumper;
-warn Dumper( $response );
-
 	$self->error( "[" . $self->name . "] MKDIR(" . $response->{'data'} . ") error: " . $response->{'result'}[0] );
 
 	return;
@@ -328,9 +312,6 @@ warn Dumper( $response );
 
 event sftp_put => sub {
 	my( $self, $response ) = @_;
-
-use Data::Dumper;
-warn Dumper( $response );
 
 	# success?
 	if ( $response->{'result'}[0] ) {
@@ -345,9 +326,6 @@ warn Dumper( $response );
 
 event sftp_put_error => sub {
 	my( $self, $response ) = @_;
-
-use Data::Dumper;
-warn Dumper( $response );
 
 	$self->error( "[" . $self->name . "] XFER(" . $response->{'data'} . ") error: " . $response->{'result'}[0] );
 

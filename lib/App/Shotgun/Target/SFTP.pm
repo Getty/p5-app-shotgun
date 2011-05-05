@@ -45,13 +45,6 @@ has sftp => (
 	init_arg => undef,
 );
 
-# caches the data we need for this operation
-has command_data => (
-	isa => 'Any',
-	is => 'rw',
-	init_arg => undef,
-);
-
 # the file we are currently transferring's path entries
 has _filedirs => (
 	isa => 'ArrayRef[Str]',
@@ -112,7 +105,7 @@ sub START {
 		],
 		'alias'			=> $self->name,
 
-#		( 'debug' => 1, 'error' => 'sftp_generic_error' ),
+		( 'debug' => 1, 'error' => 'sftp_generic_error' ),
 	) );
 
 	# check for connection error
@@ -155,8 +148,7 @@ sub transfer {
 	if ( ! $self->known_dir( $dir ) ) {
 		# okay, go check it!
 		$self->state( 'testdir' );
-		$self->command_data( $dir );
-		$self->sftp->setcwd( { 'event' => 'sftp_setcwd' }, $dir );
+		$self->sftp->setcwd( { 'event' => 'sftp_setcwd', 'data' => $dir }, $dir );
 
 		return;
 	}
@@ -174,8 +166,7 @@ sub process_put {
 
 	my $localpath = $self->file->absolute( $self->shotgun->source )->stringify;
 	my $remotepath = $self->file->absolute( $self->path )->stringify;
-	$self->command_data( $remotepath );
-	$self->sftp->put( { 'event' => 'sftp_put' }, $localpath, $remotepath );
+	$self->sftp->put( { 'event' => 'sftp_put', 'data' => $remotepath }, $localpath, $remotepath );
 
 	# TODO some optimizations to make compatibility better?
 #		copy_time => 0,
@@ -184,35 +175,41 @@ sub process_put {
 }
 
 event sftp_connect => sub {
-	my( $self, $err ) = @_;
+	my( $self, $response ) = @_;
+
+use Data::Dumper;
+warn Dumper( $response );
 
 	# Did we get an error?
-	if ( $err ) {
-		$self->error( "[" . $self->name . "] CONNECT error: $err" );
-	} else {
+	if ( ! $response->{'result'}[0] ) {
 		# set our cwd so we can initiate the transfer
-		$self->sftp->setcwd( { 'event' => 'sftp_setcwd' }, $self->path );
+		$self->sftp->setcwd( { 'event' => 'sftp_setcwd', 'data' => $self->path->stringify }, $self->path->stringify );
+	} else {
+		$self->error( "[" . $self->name . "] CONNECT error: " . $response->{'result'}[0] );
 	}
 
 	return;
 };
 
 event sftp_setcwd => sub {
-	my( $self, $cwd ) = @_;
+	my( $self, $response ) = @_;
+
+use Data::Dumper;
+warn Dumper( $response );
 
 	if ( $self->state eq 'init' ) {
 		# success?
-		if ( defined $cwd ) {
+		if ( defined $response->{'result'}[0] ) {
 			# we're set!
-			$self->add_known_dir( $self->path );
+			$self->add_known_dir( $self->path->stringify );
 			$self->ready( $self );
 		} else {
 			# get the error!
-			$self->sftp->error( { 'event' => 'sftp_setcwd_error' } );
+			$self->sftp->error( { 'event' => 'sftp_setcwd_error', 'data' => $self->path->stringify } );
 		}
 	} elsif ( $self->state eq 'testdir' ) {
 		# success?
-		if ( defined $cwd ) {
+		if ( defined $response->{'result'}[0] ) {
 			# we tried to cd to the full path, and it worked!
 			$self->_build_filedirs;
 			foreach my $d ( @{ $self->_filedirs } ) {
@@ -225,33 +222,30 @@ event sftp_setcwd => sub {
 			$self->_build_filedirs;
 
 			# if there is only 1 path, we've "tested" it and no need to re-cd into it!
-			$self->command_data( $self->_filedirs->[0] );
 			if ( scalar @{ $self->_filedirs } == 1 ) {
 				# we need to mkdir this one!
 				$self->state( 'dir' );
-				$self->sftp->mkdir( { 'event' => 'sftp_mkdir' }, $self->_filedirs->[0] );
+				$self->sftp->mkdir( { 'event' => 'sftp_mkdir', 'data' => $self->_filedirs->[0] }, $self->_filedirs->[0] );
 			} else {
 				# we now cd to the first element
 				$self->state( 'dir' );
-				$self->sftp->setcwd( { 'event' => 'sftp_setcwd' }, $self->_filedirs->[0] );
+				$self->sftp->setcwd( { 'event' => 'sftp_setcwd', 'data' => $self->_filedirs->[0] }, $self->_filedirs->[0] );
 			}
 		}
 	} elsif ( $self->state eq 'dir' ) {
 		# success?
-		if ( defined $cwd ) {
+		if ( defined $response->{'result'}[0] ) {
 			# Okay, this dir is ok, move on to the next one
 			$self->add_known_dir( shift @{ $self->_filedirs } );
 			if ( defined $self->_filedirs->[0] ) {
-				$self->command_data( $self->_filedirs->[0] );
-				$self->ftp( 'cd', $self->_filedirs->[0] );
+				$self->sftp->setcwd( { 'event' => 'sftp_setcwd', 'data' => $self->_filedirs->[0] }, $self->_filedirs->[0] );
 			} else {
 				# finally validated the entire dir path
 				$self->process_put;
 			}
 		} else {
 			# we need to mkdir this one!
-			$self->command_data( $self->_filedirs->[0] );
-			$self->sftp->mkdir( { 'event' => 'sftp_mkdir' }, $self->_filedirs->[0] );
+			$self->sftp->mkdir( { 'event' => 'sftp_mkdir', 'data' => $self->_filedirs->[0] }, $self->_filedirs->[0] );
 		}
 	} else {
 		die "(CD) unknown state: " . $self->state;
@@ -261,9 +255,12 @@ event sftp_setcwd => sub {
 };
 
 event sftp_setcwd_error => sub {
-	my( $self, $err ) = @_;
+	my( $self, $response ) = @_;
 
-	$self->error( "[" . $self->name . "] Error changing to initial path '" . $self->path . "': $err" );
+use Data::Dumper;
+warn Dumper( $response );
+
+	$self->error( "[" . $self->name . "] Error changing to initial path '" . $response->{'data'} . "': " . $response->{'result'}[0] );
 
 	return;
 };
@@ -291,22 +288,25 @@ sub _build_filedirs {
 }
 
 event sftp_mkdir => sub {
-	my( $self, $result ) = @_;
+	my( $self, $response ) = @_;
+
+use Data::Dumper;
+warn Dumper( $response );
 
 	if ( $self->state eq 'dir' ) {
 		# success?
-		if ( $result ) {
+		if ( $response->{'result'}[0] ) {
 			# mkdir the next directory in the filedirs?
 			$self->add_known_dir( shift @{ $self->_filedirs } );
 			if ( defined $self->_filedirs->[0] ) {
-				$self->command_data( $self->_filedirs->[0] );
-				$self->sftp->mkdir( { 'event' => 'sftp_mkdir' }, $self->_filedirs->[0] );
+				$self->command_data(  );
+				$self->sftp->mkdir( { 'event' => 'sftp_mkdir', 'data' => $self->_filedirs->[0] }, $self->_filedirs->[0] );
 			} else {
 				# Okay, finally done creating the entire path to the file!
 				$self->process_put;
 			}
 		} else {
-			$self->sftp->error( { 'event' => 'sftp_mkdir_error' } );
+			$self->sftp->error( { 'event' => 'sftp_mkdir_error', 'data' => $response->{'data'} } );
 		}
 	} else {
 		die "(MKDIR) unknown state: " . $self->state;
@@ -316,31 +316,40 @@ event sftp_mkdir => sub {
 };
 
 event sftp_mkdir_error => sub {
-	my( $self, $err ) = @_;
+	my( $self, $response ) = @_;
 
-	$self->error( "[" . $self->name . "] MKDIR(" . $self->command_data . ") error: $err" );
+use Data::Dumper;
+warn Dumper( $response );
+
+	$self->error( "[" . $self->name . "] MKDIR(" . $response->{'data'} . ") error: " . $response->{'result'}[0] );
 
 	return;
 };
 
 event sftp_put => sub {
-	my( $self, $result ) = @_;
+	my( $self, $response ) = @_;
+
+use Data::Dumper;
+warn Dumper( $response );
 
 	# success?
-	if ( $result ) {
+	if ( $response->{'result'}[0] ) {
 		# we're finally done with this transfer!
 		$self->xferdone( $self );
 	} else {
-		$self->sftp->error( { 'event' => 'sftp_put_error' } );
+		$self->sftp->error( { 'event' => 'sftp_put_error', 'data' => $response->{'data'} } );
 	}
 
 	return;
 };
 
 event sftp_put_error => sub {
-	my( $self, $err ) = @_;
+	my( $self, $response ) = @_;
 
-	$self->error( "[" . $self->name . "] XFER(" . $self->command_data . ") error: $err" );
+use Data::Dumper;
+warn Dumper( $response );
+
+	$self->error( "[" . $self->name . "] XFER(" . $response->{'data'} . ") error: " . $response->{'result'}[0] );
 
 	return;
 };

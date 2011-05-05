@@ -76,6 +76,9 @@ sub add_known_dir {
 sub shutdown {
 	my $self = shift;
 
+	# remove the timeout timer
+	$poe_kernel->delay( 'timeout_event' );
+
 	# tell poco-generic to shutdown
 	if ( defined $self->sftp ) {
 		$poe_kernel->call( $self->sftp->session_id, 'shutdown' );
@@ -108,11 +111,22 @@ sub START {
 #		( 'debug' => 1, 'error' => 'sftp_generic_error' ),
 	) );
 
+	# set a timer in case the password negotiation/whatever doesnt work
+	$poe_kernel->delay( 'timeout_event' => 120 );
+
 	# check for connection error
 	$self->sftp->error( { 'event' => 'sftp_connect' } );
 
 	return;
 }
+
+event timeout_event => sub {
+	my $self = shift;
+
+	$self->error( "[" . $self->name . "] CONNECT error: timed out" );
+
+	return;
+};
 
 event sftp_generic_error => sub {
 	my( $self, $err ) = @_;
@@ -176,6 +190,9 @@ sub process_put {
 
 event sftp_connect => sub {
 	my( $self, $response ) = @_;
+
+	# remove the timeout timer
+	$poe_kernel->delay( 'timeout_event' );
 
 	# Did we get an error?
 	if ( ! $response->{'result'}[0] ) {

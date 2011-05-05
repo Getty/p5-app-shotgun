@@ -141,7 +141,7 @@ sub shot {
 		}
 
 		my $type = delete $t->{'type'};
-		eval "require App::Shotgun::Target::$type";
+		eval "use App::Shotgun::Target::$type";
 		if ( $@ ) {
 			die "Unknown target type: $type - $@";
 		} else {

@@ -168,7 +168,7 @@ sub _error {
 
 	# Tell all of our targets to shutdown
 	foreach my $t ( @{ $self->connections } ) {
-		$t->shutdown;
+		$t->yield( 'shutdown' );
 	}
 
 	return;
@@ -221,7 +221,7 @@ sub _xferdone {
 
 			# Tell all of our targets to shutdown
 			foreach my $t ( @{ $self->connections } ) {
-				$t->shutdown;
+				$t->yield( 'shutdown' );
 			}
 		}
 	} else {

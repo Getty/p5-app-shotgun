@@ -73,7 +73,7 @@ sub add_known_dir {
 }
 
 # the master told us to shutdown
-sub shutdown {
+event shutdown => sub {
 	my $self = shift;
 
 	# remove the timeout timer
@@ -81,12 +81,15 @@ sub shutdown {
 
 	# tell poco-generic to shutdown
 	if ( defined $self->sftp ) {
+		# TODO ARGH poco-generic NEEDS TO SHUTDOWN NOW
+		# the problem is that it does a "graceful" shutdown
+		# but the ssh process is stuck on password prompt
+		# and everything freezes....
+		$self->sftp->{'wheel'}->kill( 'KILL' );
 		$poe_kernel->call( $self->sftp->session_id, 'shutdown' );
 		$self->sftp( undef );
 	}
-
-	return;
-}
+};
 
 sub START {
 	my $self = shift;
@@ -106,7 +109,6 @@ sub START {
 
 			timeout => 120,
 		],
-		'alias'			=> $self->name,
 
 #		( 'debug' => 1, 'error' => 'sftp_generic_error' ),
 	) );
@@ -131,6 +133,9 @@ event timeout_event => sub {
 event sftp_generic_error => sub {
 	my( $self, $err ) = @_;
 
+	# TODO poco-generic sucks for not properly shutting down
+	return if ! defined $self->sftp;
+
 	if( $err->{stderr} ) {
 		# $err->{stderr} is a line that was printed to the
 		# sub-processes' STDERR.  99% of the time that means from
@@ -153,6 +158,10 @@ event _child => sub { return };
 # actually transfer $file from the local dir to the remote
 event transfer => sub {
 	my $self = shift;
+
+	# TODO poco-generic sucks for not properly shutting down
+	return if ! defined $self->sftp;
+
 	$self->state( 'xfer' );
 
 	$self->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );
@@ -194,6 +203,9 @@ event sftp_connect => sub {
 	# remove the timeout timer
 	$poe_kernel->delay( 'timeout_event' );
 
+	# TODO poco-generic sucks for not properly shutting down
+	return if ! defined $self->sftp;
+
 	# Did we get an error?
 	if ( ! $response->{'result'}[0] ) {
 		# set our cwd so we can initiate the transfer
@@ -207,6 +219,9 @@ event sftp_connect => sub {
 
 event sftp_setcwd => sub {
 	my( $self, $response ) = @_;
+
+	# TODO poco-generic sucks for not properly shutting down
+	return if ! defined $self->sftp;
 
 	if ( $self->state eq 'init' ) {
 		# success?
@@ -298,6 +313,9 @@ sub _build_filedirs {
 event sftp_mkdir => sub {
 	my( $self, $response ) = @_;
 
+	# TODO poco-generic sucks for not properly shutting down
+	return if ! defined $self->sftp;
+
 	if ( $self->state eq 'dir' ) {
 		# success?
 		if ( $response->{'result'}[0] ) {
@@ -329,6 +347,9 @@ event sftp_mkdir_error => sub {
 
 event sftp_put => sub {
 	my( $self, $response ) = @_;
+
+	# TODO poco-generic sucks for not properly shutting down
+	return if ! defined $self->sftp;
 
 	# success?
 	if ( $response->{'result'}[0] ) {

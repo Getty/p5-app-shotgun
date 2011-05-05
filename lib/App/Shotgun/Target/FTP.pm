@@ -87,14 +87,14 @@ sub ftp {
 }
 
 # the master told us to shutdown
-sub shutdown {
+event shutdown => sub {
 	my $self = shift;
 
 	# disconnect from the ftpd
 	$self->ftp( 'quit' );
 
 	return;
-}
+};
 
 sub START {
 	my $self = shift;

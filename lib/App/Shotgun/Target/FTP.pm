@@ -6,15 +6,21 @@ use warnings;
 
 #sub POE::Component::Client::SimpleFTP::DEBUG () { 1 };
 
-use MooseX::POE::SweetArgs;
-use POE::Component::Client::SimpleFTP;
-
-use Path::Class::Dir;
+use MooseX::POE::SweetArgs 0.213;
+use POE::Component::Client::SimpleFTP 0.003;
 
 with qw(
 	App::Shotgun::Target
 	MooseX::LogDispatch
 );
+
+=attr port
+
+The port to connect on the server.
+
+The default is: 21
+
+=cut
 
 has port => (
 	isa => 'Int',
@@ -22,17 +28,41 @@ has port => (
 	default => 21,
 );
 
+=attr usetls
+
+Enable/disable TLS encryption for the connection.
+
+The default is: false
+
+=cut
+
 has usetls => (
 	isa => 'Bool',
 	is => 'ro',
 	default => 0,
 );
 
+=attr username
+
+The username to login to the server with.
+
+Required.
+
+=cut
+
 has username => (
 	isa => 'Str',
 	is => 'ro',
 	required => 1,
 );
+
+=attr password
+
+The password to login to the server with.
+
+Required.
+
+=cut
 
 has password => (
 	isa => 'Str',
@@ -46,36 +76,6 @@ has _filefh => (
 	is => 'rw',
 	init_arg => undef,
 );
-has _filedirs => (
-	isa => 'ArrayRef[Str]',
-	is => 'rw',
-	default => sub { [] },
-	init_arg => undef,
-);
-
-# directories we know that is on the ftpd
-has _knowndirs => (
-	traits => ['Hash'],
-	isa => 'HashRef[Str]',
-	is => 'ro',
-	init_arg => undef,
-	default => sub {
-		return {
-			# obviously the root exists... :)
-			'/' => 1,
-		};
-	},
-	handles => {
-		known_dir => 'exists',
-	},
-);
-
-sub add_known_dir {
-	my( $self, $path ) = @_;
-
-	$self->_knowndirs->{ $path } = 1;
-	return;
-}
 
 # convenience function to simplify passing events to poco-ftp
 sub ftp {
@@ -182,28 +182,6 @@ event authenticated => sub {
 
 	return;
 };
-
-sub _build_filedirs {
-	my $self = shift;
-
-	my @dirs;
-	foreach my $d ( $self->file->dir->dir_list ) {
-		if ( ! defined $dirs[0] ) {
-			push( @dirs, Path::Class::Dir->new( $self->path, $d )->stringify );
-		} else {
-			push( @dirs, Path::Class::Dir->new( $dirs[-1], $d )->stringify );
-		}
-	}
-
-	# Weed out the known directories
-	foreach my $d ( @dirs ) {
-		if ( ! $self->known_dir( $d ) ) {
-			push( @{ $self->_filedirs }, $d );
-		}
-	}
-
-	return;
-}
 
 event cd => sub {
 	my( $self, $code, $reply, $path ) = @_;
@@ -340,7 +318,7 @@ sub send_chunk {
 	my $self = shift;
 
 	my $buf;
-	my $retval = read( $self->_filefh, $buf, 10240 ); # TODO is 10240 ok? I lifted it from poco-ftp code
+	my $retval = read( $self->_filefh, $buf, 10_240 ); # TODO is 10240 ok? I lifted it from poco-ftp code
 	if ( $retval ) {
 		$self->ftp( 'put_data', $buf );
 	} elsif ( $retval == 0 ) {
@@ -370,3 +348,13 @@ event put => sub {
 no MooseX::POE::SweetArgs;
 __PACKAGE__->meta->make_immutable;
 1;
+
+=pod
+
+=for Pod::Coverage ftp process_put send_chunk START
+
+=head1 DESCRIPTION
+
+Implements the FTP target.
+
+=cut

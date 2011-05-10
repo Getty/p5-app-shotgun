@@ -4,13 +4,14 @@ use warnings;
 
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
-use Moose;
-use MooseX::Types::Path::Class;
-use Cwd qw( getcwd );
+use Moose 2;
+use MooseX::Types::Path::Class 0.05;
+use Cwd 3.33 qw( getcwd );
+use Path::Class::Dir 0.23;
 
-with qw(
-	MooseX::Getopt
-	MooseX::LogDispatch
+with(
+	'MooseX::Getopt' => { -version => '0.37' },
+	'MooseX::LogDispatch' => { -version => '1.2002' },
 );
 
 # TODO unimplemented stuff
@@ -122,7 +123,42 @@ has error => (
 	init_arg => undef,
 );
 
+=method shot
+
+The main entry point of this module.
+
+Returns nothing.
+
+=cut
+
 sub shot {
+	my $self = shift;
+
+	$self->_init;
+
+	# fire up the POE kernel
+	POE::Kernel->run;
+
+	# All done!
+	return;
+}
+
+=method shot_poe
+
+Use this method if you are embedding this module in a bigger POE-based program. The only difference with L</shot> is that
+this method will not run the POE kernel, leaving it to the caller to do so.
+
+=cut
+
+sub shot_poe {
+	my $self = shift;
+
+	$self->_init;
+
+	return;
+}
+
+sub _init {
 	my $self = shift;
 
 	$self->logger->debug( "Starting SHOTGUN" );
@@ -149,12 +185,6 @@ sub shot {
 			$self->new_connection( $connection );
 		}
 	}
-
-	# fire up the POE kernel
-	POE::Kernel->run;
-
-	# All done!
-	return;
 }
 
 sub _error {
@@ -236,59 +266,60 @@ no Moose;
 __PACKAGE__->meta->make_immutable;
 1;
 
+=pod
+
 =head1 SYNOPSIS
 
-  use App::Shotgun;
+	use App::Shotgun;
 
-  my $shotgun = App::Shotgun->new(
-    transferlog => 'transfer.log', # optional
-    source => '../relative/path',
-    files => [
-      # NEVER NEVER EVER EVER use relative paths here!
-      'robots.txt',
-      'dir/dir/dir/file.txt',
-      'category/index.html',
-      'index.html',
-    ],
-    targets => [
-      {
-        type => 'FTP',
-        name => 'Target 1', # optional
-	path => 'htdocs/', # optional
-        hostname => 'my.local',
-        port => 789 # optional
-        username => 'notfor',
-        password => 'you321',
-      },
-      {
-        type => 'SFTP',
-        name => 'Target 2', # optional
-	path => '/tmp/testenv', # optional
-        hostname => 'myother.local',
-        username => 'notfor',
+	my $shotgun = App::Shotgun->new(
+		source => '../relative/path',
+		files => [
+			# NEVER NEVER EVER EVER use relative paths here!
+			# They should be in the source path
+			'robots.txt',
+			'dir/dir/dir/file.txt',
+			'category/index.html',
+			'index.html',
+		],
+		targets => [
+			{
+				type => 'FTP',
+				name => 'Target 1', # optional
+				path => 'htdocs/', # optional
+				hostname => 'my.local',
+				username => 'notfor',
+				password => 'you321',
+			},
+			{
+				type => 'SFTP',
+				name => 'Target 2', # optional
+				path => '/tmp/testenv', # optional
+				hostname => 'myother.local',
+				username => 'notfor',
 
-        # prepared key authentifications are just working
-        # probably more options for configuring ssh, like alternative private key
-      },
-    ],
-  );
+				# prepared key authentifications are just working
+				# probably more options for configuring ssh, like alternative private key
+			},
+		],
+	);
 
-  # Order of upload:
-  # Target 1: robots.txt
-  # Target 2: robots.txt
-  # Target 1: dir/dir/dir/file.txt
-  # Target 2: dir/dir/dir/file.txt
-  # ...
+	# Order of upload:
+	# Target 1: robots.txt
+	# Target 2: robots.txt
+	# Target 1: dir/dir/dir/file.txt
+	# Target 2: dir/dir/dir/file.txt
+	# ...
 
-  $shotgun->shot;
+	$shotgun->shot;
 
-  print "Success: ".($shotgun->success ? 'YES' : 'NO')."\n";
-  print "Error: ".$shotgun->error if (!$shotgun->success);
+	print "Success: ".($shotgun->success ? 'YES' : 'NO')."\n";
+	print "Error: ".$shotgun->error if (!$shotgun->success);
 
-  my $other_shotgun = App::Shotgun->new(
-    source => '/absolute/path',
-    filelist => 'filelist.txt',
-  );
+	my $other_shotgun = App::Shotgun->new(
+		source => '/absolute/path',
+		filelist => 'filelist.txt',
+	);
 
 =head1 DESCRIPTION
 
@@ -298,3 +329,7 @@ successful done, the next file will be uploaded. This module doesn't do any "sma
 just uploads the files. Hence the name "shotgun" which is appropriate :)
 
 For first the module is made to try again very often but will not continue on fail and close with an exit code above 0.
+
+Please look at the appropriate C<App::Shotgun::Target::*> classes for their attributes and how to use them.
+
+=cut

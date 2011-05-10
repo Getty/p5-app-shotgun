@@ -2,6 +2,8 @@ package App::Shotgun::Target;
 use strict;
 use warnings;
 
+# ABSTRACT: Base class for all App::Shotgun targets
+
 use Moose::Role;
 use MooseX::Types::Path::Class;
 
@@ -37,7 +39,8 @@ has _type => (
 
 The name of the target. Set this to something descriptive so you can figure out what went wrong in the logs!
 
-The default is: target_type hostname
+The default is: type::hostname:port::path
+
 Example: "FTP::foo.com:21::/"
 
 =cut
@@ -105,4 +108,68 @@ has path => (
 	no Moose::Util::TypeConstraints;
 }
 
+# the file we are currently transferring's path entries
+has _filedirs => (
+	isa => 'ArrayRef[Str]',
+	is => 'rw',
+	default => sub { [] },
+	init_arg => undef,
+);
+
+# directories we know that is on the server
+has _knowndirs => (
+	traits => ['Hash'],
+	isa => 'HashRef[Str]',
+	is => 'ro',
+	init_arg => undef,
+	default => sub {
+		return {
+			# obviously the root exists... :)
+			'/' => 1,
+		};
+	},
+	handles => {
+		known_dir => 'exists',
+	},
+);
+
+sub add_known_dir {
+	my( $self, $path ) = @_;
+
+	$self->_knowndirs->{ $path } = 1;
+	return;
+}
+
+sub _build_filedirs {
+	my $self = shift;
+
+	my @dirs;
+	foreach my $d ( $self->file->dir->dir_list ) {
+		if ( ! defined $dirs[0] ) {
+			push( @dirs, Path::Class::Dir->new( $self->path, $d )->stringify );
+		} else {
+			push( @dirs, Path::Class::Dir->new( $dirs[-1], $d )->stringify );
+		}
+	}
+
+	# Weed out the known directories
+	foreach my $d ( @dirs ) {
+		if ( ! $self->known_dir( $d ) ) {
+			push( @{ $self->_filedirs }, $d );
+		}
+	}
+
+	return;
+}
+
 1;
+
+=pod
+
+=for Pod::Coverage add_known_dir
+
+=head1 DESCRIPTION
+
+The master target class, used in subclasses. Provides some convenience functions and common attributes.
+
+=cut

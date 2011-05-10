@@ -7,12 +7,11 @@ use warnings;
 use MooseX::POE::SweetArgs;
 use POE::Component::Generic;
 
-use Path::Class::Dir;
-
 # argh, we need to fool Test::Apocalypse::Dependencies!
 # Also, this will let dzil autoprereqs pick it up without actually loading it...
 if ( 0 ) {
 	require Net::SFTP::Foreign;
+	require Expect; # to make sure SFTP can handle passwords
 }
 
 with qw(
@@ -20,17 +19,41 @@ with qw(
 	MooseX::LogDispatch
 );
 
+=attr port
+
+The port to connect on the server.
+
+The default is: 22
+
+=cut
+
 has port => (
 	isa => 'Int',
 	is => 'ro',
 	default => 22,
 );
 
+=attr username
+
+The username to login to the server with.
+
+Required.
+
+=cut
+
 has username => (
 	isa => 'Str',
 	is => 'ro',
 	required => 1,
 );
+
+=attr password
+
+The password to login to the server with. Please see the note in L</DESCRIPTION> for more information.
+
+The default is: none ( use ssh certificates )
+
+=cut
 
 has password => (
 	isa => 'Str',
@@ -44,33 +67,6 @@ has sftp => (
 	is => 'rw',
 	init_arg => undef,
 );
-
-# the file we are currently transferring's path entries
-has _filedirs => (
-	isa => 'ArrayRef[Str]',
-	is => 'rw',
-	default => sub { [] },
-	init_arg => undef,
-);
-
-# directories we know that is on the sftp server
-has _knowndirs => (
-	traits => ['Hash'],
-	isa => 'HashRef[Str]',
-	is => 'ro',
-	init_arg => undef,
-	default => sub { {} },
-	handles => {
-		known_dir => 'exists',
-	},
-);
-
-sub add_known_dir {
-	my( $self, $path ) = @_;
-
-	$self->_knowndirs->{ $path } = 1;
-	return;
-}
 
 # the master told us to shutdown
 event shutdown => sub {
@@ -288,28 +284,6 @@ event sftp_setcwd_error => sub {
 	return;
 };
 
-sub _build_filedirs {
-	my $self = shift;
-
-	my @dirs;
-	foreach my $d ( $self->file->dir->dir_list ) {
-		if ( ! defined $dirs[0] ) {
-			push( @dirs, Path::Class::Dir->new( $self->path, $d )->stringify );
-		} else {
-			push( @dirs, Path::Class::Dir->new( $dirs[-1], $d )->stringify );
-		}
-	}
-
-	# Weed out the known directories
-	foreach my $d ( @dirs ) {
-		if ( ! $self->known_dir( $d ) ) {
-			push( @{ $self->_filedirs }, $d );
-		}
-	}
-
-	return;
-}
-
 event sftp_mkdir => sub {
 	my( $self, $response ) = @_;
 
@@ -373,3 +347,17 @@ event sftp_put_error => sub {
 no MooseX::POE::SweetArgs;
 __PACKAGE__->meta->make_immutable;
 1;
+
+=pod
+
+=for Pod::Coverage process_put START
+
+=head1 DESCRIPTION
+
+Implements the SFTP ( FTP via SSH ) target.
+
+Note: It is recommended to have ssh certificates set up for passwordless authentication. If you supply a password, L<Net::SFTP::Foreign>
+will attempt to use L<Expect> to do the interaction, but you must have L<Expect> installed. Otherwise the connection will hang at the
+password prompt and nothing will work!
+
+=cut

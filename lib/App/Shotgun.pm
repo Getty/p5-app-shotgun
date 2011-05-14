@@ -16,6 +16,8 @@ with(
 
 # TODO unimplemented stuff
 
+# support getting user/pass from a .netrc file ( use Net::Netrc ? )
+
 ## log our transfers to a file somewhere
 #has transferlog => (
 #	isa => 'Str',

@@ -4,10 +4,10 @@ use warnings;
 
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
-use Moose 2;
-use MooseX::Types::Path::Class 0.05;
-use Cwd 3.33 qw( getcwd );
-use Path::Class::Dir 0.23;
+use Moose;
+use MooseX::Types::Path::Class;
+use Cwd qw( getcwd );
+use Path::Class::Dir;
 
 with(
 	'MooseX::Getopt' => { -version => '0.37' },
@@ -51,25 +51,34 @@ has filelist => (
 	predicate => 'has_filelist',
 );
 
-# TODO we need to make sure that the files is NEVER a relative path
-# as it will seriously fuck up the logic here
+has file => (
+	traits  => ['Array'],
+	is      => 'ro',
+	isa     => 'ArrayRef[Str]',
+	predicate => 'has_file',
+);
+
 has files => (
 	traits  => ['Array'],
 	is      => 'ro',
 	isa     => 'ArrayRef[Str]',
 	default => sub {
 		my $self = shift;
+		my @files;
+		my $ok;
 		if ( $self->has_filelist ) {
-			my @files;
+			$ok = 1;
 			open( my $fh, '<', $self->filelist ) or die "Unable to open " . $self->filelist . ": $!";
 			while ( my $file = <$fh> ) {
 				push @files, $file;
 			}
 			close( $fh ) or die "Unable to close " . $self->filelist . ": $!";
-			return \@files;
-		} else {
-			die "no files given";
 		}
+		if ( $self->has_file ) {
+			$ok = 1;
+			@files = @{$self->file};
+		}
+		$ok ? \@files : die "no files given";
 	},
 	handles => {
 		next_file => 'shift',
@@ -81,7 +90,35 @@ has targets => (
 	traits => ['NoGetopt'],
 	is      => 'ro',
 	isa     => 'ArrayRef[HashRef[Str]]',
-	required => 1,
+	default => sub {
+		my $self = shift;
+		if ( $self->has_target ) {
+			my @targets;
+			for (@{$self->target}) {
+				my ($type, @other) = split(/:/,$_);
+				my %params;
+				for (@other) {
+					my ($var, @values) = split(/\=/,$_);
+					my $value = @values ? join('=',@values) : 1;
+					$params{$var} = $value;
+				}
+				push @targets, {
+					type => $type,
+					%params,
+				};
+			}
+			return \@targets;
+		} else {
+			die "no targets given";
+		}
+	},
+);
+
+has target => (
+	traits  => ['Array'],
+	is      => 'ro',
+	isa     => 'ArrayRef[Str]',
+	predicate => 'has_target',
 );
 
 has connections => (
@@ -164,6 +201,8 @@ sub _init {
 	my $self = shift;
 
 	$self->logger->debug( "Starting SHOTGUN" );
+	
+	# TODO: Checking if there is any [^|/].{1,2}[$|/] in the files
 
 	die "No targets defined" if ! scalar @{ $self->targets };
 

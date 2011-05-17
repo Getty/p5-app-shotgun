@@ -1,0 +1,27 @@
+#!/usr/bin/env perl
+# PODNAME: shotgun
+# ABSTRACT: mass upload of files via SCP/FTP/...
+
+binmode STDOUT, ":utf8";
+
+use App::Shotgun;
+App::Shotgun->new_with_options->shot;
+
+__END__
+
+=pod
+
+=head1 SYNPOSIS
+
+  shotgun --filelist /some/file.txt
+  
+/some/file.txt
+
+  article/one.html
+  article/two.html
+  articlelist.html
+  index.html
+  
+=head2 DESCRIPTION
+
+TODO

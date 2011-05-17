@@ -70,6 +70,7 @@ has files => (
 			$ok = 1;
 			open( my $fh, '<', $self->filelist ) or die "Unable to open " . $self->filelist . ": $!";
 			while ( my $file = <$fh> ) {
+				chomp($file);
 				push @files, $file;
 			}
 			close( $fh ) or die "Unable to close " . $self->filelist . ": $!";

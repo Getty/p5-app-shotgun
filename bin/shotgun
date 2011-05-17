@@ -13,14 +13,11 @@ __END__
 
 =head1 SYNPOSIS
 
-  shotgun --filelist /some/file.txt
-  
-/some/file.txt
-
-  article/one.html
-  article/two.html
-  articlelist.html
-  index.html
+  shotgun --filelist a_filelist.txt \
+	--target FTP:hostname=localhost:username=testftp:password=test
+  shotgun --file first_file.txt --file second_file.txt \
+	--target FTP:hostname=localhost:username=testftp:password=test \
+	--target FTP:hostname=remote.server.com:username=testftp:password=test
   
 =head2 DESCRIPTION
 

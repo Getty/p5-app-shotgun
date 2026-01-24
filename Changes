@@ -1,6 +1,8 @@
-Revision history for {{$dist->name}}
+Revision history for App-Shotgun
 
 {{$NEXT}}
+    - Update to @Author::GETTY plugin bundle
+    - Move prereqs to cpanfile
 
 0.001     2011-05-17 05:11:32 Europe/Berlin
-	- First release
+    - First release

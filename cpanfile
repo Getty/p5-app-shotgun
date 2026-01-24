@@ -1,7 +1,6 @@
 requires 'Moose', '2.0007';
 requires 'MooseX::Types::Path::Class', '0.05';
-requires 'Cwd', '3.33';
-requires 'Path::Class::Dir', '0.23';
+requires 'Path::Class', '0.23';
 requires 'MooseX::Getopt', '0.37';
 requires 'MooseX::LogDispatch', '1.2002';
 requires 'POE::Component::Client::SimpleFTP', '0.003';

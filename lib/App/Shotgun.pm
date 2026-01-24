@@ -45,11 +45,23 @@ has source => (
 	default => sub { getcwd },
 );
 
+=attr source
+
+The source directory containing the files to upload. Defaults to current working directory.
+
+=cut
+
 has filelist => (
 	isa => 'Str',
 	is => 'ro',
 	predicate => 'has_filelist',
 );
+
+=attr filelist
+
+Path to a text file containing list of files to upload (one per line). Alternative to L</file>.
+
+=cut
 
 has file => (
 	traits  => ['Array'],
@@ -57,6 +69,12 @@ has file => (
 	isa     => 'ArrayRef[Str]',
 	predicate => 'has_file',
 );
+
+=attr file
+
+ArrayRef of files to upload. Can be specified multiple times on command line. Alternative to L</filelist>.
+
+=cut
 
 has files => (
 	traits  => ['Array'],
@@ -87,6 +105,12 @@ has files => (
 	},
 );
 
+=attr files
+
+Internal ArrayRef containing the files to upload. Built from either L</filelist> or L</file>.
+
+=cut
+
 has targets => (
 	traits => ['NoGetopt'],
 	is      => 'ro',
@@ -115,12 +139,26 @@ has targets => (
 	},
 );
 
+=attr targets
+
+Internal ArrayRef of parsed target configurations. Built from L</target>.
+
+=cut
+
 has target => (
 	traits  => ['Array'],
 	is      => 'ro',
 	isa     => 'ArrayRef[Str]',
 	predicate => 'has_target',
 );
+
+=attr target
+
+ArrayRef of target specification strings. Format: C<type:key=value:key=value...>
+
+Example: C<FTP:hostname=ftp.example.com:username=user:password=pass:path=/htdocs>
+
+=cut
 
 has connections => (
 	traits => ['Array','NoGetopt'],
@@ -133,6 +171,12 @@ has connections => (
 	},
 );
 
+=attr connections
+
+Internal ArrayRef of connection objects (instances of C<App::Shotgun::Target::*>).
+
+=cut
+
 has current_connection => (
 	traits => ['NoGetopt'],
 	isa => 'Int',
@@ -140,6 +184,12 @@ has current_connection => (
 	default => 0,
 	init_arg => undef,
 );
+
+=attr current_connection
+
+Internal counter tracking which connection is currently being used for upload.
+
+=cut
 
 has current_file => (
 	traits => ['NoGetopt'],
@@ -149,6 +199,12 @@ has current_file => (
 	init_arg => undef,
 );
 
+=attr current_file
+
+Internal attribute tracking the file currently being uploaded.
+
+=cut
+
 has success => (
 	traits => ['NoGetopt'],
 	isa => 'Bool',
@@ -157,11 +213,23 @@ has success => (
 	init_arg => undef,
 );
 
+=attr success
+
+Boolean indicating whether all uploads completed successfully. Check this after calling L</shot>.
+
+=cut
+
 has error => (
 	isa => 'Str',
 	is => 'rw',
 	init_arg => undef,
 );
+
+=attr error
+
+Error message if the upload failed. Only set when L</success> is false.
+
+=cut
 
 =method shot
 
@@ -365,10 +433,10 @@ __PACKAGE__->meta->make_immutable;
 
 =head1 DESCRIPTION
 
-This module uploads the filelist textfile given via B<filelist> or the filelist given as array via B<files> to all given B<targets>.
+This module uploads the filelist textfile given via L</filelist> or the filelist given as array via L</files> to all given L</targets>.
 It uploads file after file, to target after target, that means, first file will get uploaded to all target, and if they all are
 successful done, the next file will be uploaded. This module doesn't do any "smart" things like compare filesize/modification time/etc and
-just uploads the files. Hence the name "shotgun" which is appropriate :)
+just uploads the files. Hence the name "shotgun" which is appropriate.
 
 For first the module is made to try again very often but will not continue on fail and close with an exit code above 0.
 

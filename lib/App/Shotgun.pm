@@ -5,13 +5,28 @@ use warnings;
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
 use Moose;
+use MooseX::Getopt;
 use MooseX::Types::Path::Class;
 use Cwd qw( getcwd );
 use Path::Class::Dir;
+use Log::Dispatch;
 
-with(
-	'MooseX::Getopt' => { -version => '0.37' },
-	'MooseX::LogDispatch' => { -version => '1.2002' },
+has logger => (
+	is      => 'ro',
+	isa     => 'Log::Dispatch',
+	default => sub {
+		Log::Dispatch->new(
+			outputs => [
+				[ 'Screen', min_level => 'debug', newline => 1 ],
+			],
+		);
+	},
+	handles => {
+		debug => 'debug',
+		info  => 'info',
+		warn  => 'warn',
+		error => 'error',
+	},
 );
 
 # TODO unimplemented stuff

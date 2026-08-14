@@ -1,0 +1,8 @@
+claude: true
+prompt: >
+  You are working on App::Shotgun (Perl, Moose, mass upload via FTP/SFTP). Pull the
+  board, pick the next actionable ticket, and implement it following
+  .claude/rules/shotgun-rules.md. Delegate behavior-relevant code to the
+  shotgun-worker agent if the Agent tool is available; otherwise implement directly.
+  Verify with `prove -l t/` before handoff. Never release without explicit
+  maintainer go-ahead.

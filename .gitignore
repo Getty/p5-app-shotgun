@@ -9,3 +9,7 @@ App-Shotgun-*
 .claude/statsig/
 .claude/todos/
 .claude/projects/
+
+# karr materialized task view -- never commit
+tasks/
+config.yml

@@ -1,0 +1,38 @@
+---
+claimed_at: 2026-08-15T15:45:54Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-15T15:45:54Z
+created: 2026-08-14T23:26:27Z
+depends_on:
+- 5
+id: 7
+priority: high
+started: 2026-08-15T15:45:54Z
+status: done
+tags:
+- deps
+- release
+title: 'cpanfile: Log::Dispatch fehlt, MooseX::Getopt-Eintrag pruefen'
+updated: 2026-08-15T15:45:54Z
+---
+
+Commit 925e9c7 hat `use Log::Dispatch;` in lib/App/Shotgun.pm:12 eingefuehrt und
+das Modul direkt benutzt (isa => "Log::Dispatch", Log::Dispatch->new(...)).
+Im cpanfile steht es nicht — es kommt nur transitiv ueber MooseX::LogDispatch.
+
+Fuer eine [@Author::GETTY]-Dist muss ein direkt benutzter Runtime-Dep deklariert
+sein. Reihenfolge erklaert die Luecke: 65d0423 ("Fix cpanfile dependencies") kam
+VOR 925e9c7 und konnte den Neuzugang nicht kennen.
+
+ZU TUN:
+1. requires "Log::Dispatch" mit Mindestversion ins cpanfile aufnehmen.
+2. MooseX::Getopt (cpanfile) steht noch drin, wird nach der 925e9c7-Regression
+   aber effektiv nicht mehr benutzt. Sobald Ticket 5 gefixt ist (Role wieder
+   komponiert), ist der Eintrag wieder korrekt — also NICHT vorher entfernen,
+   sondern nach Ticket 5 gegenpruefen.
+3. MooseX::LogDispatch bleibt noetig: Target/FTP.pm:14 und Target/SFTP.pm:19
+   komponieren die Role weiterhin.
+
+Verifikation: dzil build und Blick in die erzeugte META.json auf runtime
+requires.

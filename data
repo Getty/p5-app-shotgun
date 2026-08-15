@@ -1,0 +1,53 @@
+---
+claimed_at: 2026-08-15T15:45:54Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-15T15:45:54Z
+created: 2026-08-14T23:25:56Z
+id: 5
+priority: critical
+started: 2026-08-15T15:45:54Z
+status: done
+tags:
+- bug
+- regression
+- cli
+- moose
+title: 'bin/shotgun kaputt: MooseX::Getopt-Role wird nicht mehr komponiert'
+updated: 2026-08-15T15:45:54Z
+---
+
+Regression aus Commit 925e9c7 ("Fix POD and config issues").
+
+Der Commit hat in lib/App/Shotgun.pm diese Role-Komposition entfernt:
+
+    with(
+        "MooseX::Getopt"      => { -version => "0.37" },
+        "MooseX::LogDispatch" => { -version => "1.2002" },
+    );
+
+und durch ein blankes `use MooseX::Getopt;` (lib/App/Shotgun.pm:8) ersetzt.
+MooseX::Getopt ist eine Moose::Role — `use` komponiert sie nicht. Damit
+existiert new_with_options nicht mehr.
+
+REPRODUKTION:
+    $ perl -Ilib bin/shotgun --help
+    Cant locate object method "new_with_options" via package "App::Shotgun" at bin/shotgun line 8.
+    exit 255
+
+GEGENPROBE an v0.001 (45271e1): dort liefert App::Shotgun->can("new_with_options") noch JA.
+
+Die Commit-Message nennt das "Config: Remove unnecessary settings" — es war
+nicht unnoetig, es war die komplette CLI.
+
+FIX: Role wieder komponieren. Die -version-Hash-Syntax war vermutlich der
+urspruengliche Ausloeser (mit neueren Moose-Versionen problematisch); dann
+    with qw( MooseX::Getopt );
+und die Mindestversionen im cpanfile lassen, wo sie ohnehin stehen.
+
+Achtung Wechselwirkung: die traits => ["NoGetopt"] an mehreren Attributen
+(Zeilen 130, 179, 196, 210, 224) haengen an MooseX::Getopt.
+
+REGRESSIONSTEST: t/01-load.t macht nur use_ok und ist deshalb gruen geblieben.
+Es braucht einen Test, der App::Shotgun->can("new_with_options") prueft — sonst
+faellt der naechste solche Umbau wieder durch.

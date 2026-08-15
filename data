@@ -1,0 +1,46 @@
+---
+claimed_at: 2026-08-15T16:03:56Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-15T16:03:56Z
+created: 2026-08-14T23:27:22Z
+id: 10
+priority: medium
+started: 2026-08-15T16:03:56Z
+status: done
+tags:
+- docs
+- config
+- agents
+title: 'Tote Verweise: skill karr fehlt, briefing- und caveman-Plugin nicht installiert'
+updated: 2026-08-15T16:03:56Z
+---
+
+Aus Commit 8a30718. Zwei Verweise, die ins Leere gehen.
+
+(1) skill `karr` existiert fuer Claude in diesem Repo nicht.
+    Referenziert in CLAUDE.md ("Full command surface: skill karr") und in
+    .claude/rules/shotgun-rules.md (gleicher Satz).
+    manage-skills list kennt karr nur unter
+    ~/dev/perl/dbio-dev/dbio/.claude/skills — hier nicht installiert. Die
+    einzige weitere Kopie ist ~/.codex/skills/karr, also Codex, nicht Claude.
+    Das Board selbst ist voellig in Ordnung: refs/karr/* existiert, karr liegt
+    im PATH. Nur der Skill-Pointer ist tot.
+    Optionen: skill via manage-skills hier installieren, oder den Verweis aus
+    beiden Dateien streichen (die Kommandoliste in den rules deckt den
+    Alltagsgebrauch bereits ab).
+
+(2) .claude/settings.json aktiviert briefing@briefing, das Plugin ist fuer
+    dieses Projekt aber nicht installiert. installed_plugins.json listet
+    briefing nur fuer goldmine, p5-app-raider und hi-proto.
+    Das ist nicht kosmetisch: die gesamte Delegations-Begruendung in den rules
+    ("nur die shotgun-* Agents bekommen ihre Skills via briefing.skills
+    force-loaded; du bekommst kein Briefing") haengt daran. Wenn briefing hier
+    nicht laeuft, bekommt auch der Worker sein Briefing nicht.
+    Zu klaeren: briefing installieren, oder die Delegations-Begruendung auf
+    etwas stuetzen, das hier tatsaechlich greift.
+
+(3) .claude/settings.json aktiviert ausserdem caveman@caveman — ebenfalls nicht
+    fuer dieses Projekt installiert und inhaltlich eine persoenliche
+    Ausgabe-Praeferenz in einer eingecheckten, geteilten Projekt-Config.
+    Vorschlag: raus aus settings.json, gehoert nach settings.local.json.

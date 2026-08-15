@@ -1,0 +1,46 @@
+---
+claimed_at: 2026-08-15T15:45:54Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-15T15:45:54Z
+created: 2026-08-14T23:26:12Z
+depends_on:
+- 5
+id: 6
+priority: high
+started: 2026-08-15T15:45:54Z
+status: done
+tags:
+- bug
+- regression
+- moose
+title: 'Moose-Warnung bei jedem Load: logger-Delegation kollidiert mit error-Attribut'
+updated: 2026-08-15T15:45:54Z
+---
+
+Ebenfalls aus Commit 925e9c7.
+
+Das neue logger-Attribut delegiert error auf den Log::Dispatch:
+
+    lib/App/Shotgun.pm:28    error => "error",
+
+Es gibt aber bereits ein gleichnamiges Attribut:
+
+    lib/App/Shotgun.pm:237   has error => ( isa => "Str", is => "rw", init_arg => undef );
+
+Moose installiert erst die Delegation, dann ueberschreibt der Attribut-Accessor
+sie. Ergebnis bei JEDEM Laden des Moduls (auch in prove und dzil build):
+
+    You are overwriting a locally defined method (error) with an accessor
+    at .../Moose/Meta/Attribute.pm line 1098.
+
+Folge: die Logger-error-Delegation ist tot. debug/info/warn funktionieren.
+_error() (lib/App/Shotgun.pm:315) nutzt ohnehin $self->logger->debug und das
+error-Attribut als Speicher — die Delegation war also nie noetig.
+
+FIX: error aus dem handles-Hash streichen. Danach pruefen, dass der Load
+warnungsfrei ist:
+    perl -Ilib -e "use App::Shotgun" 2>&1 | grep -i overwrit
+
+Haengt inhaltlich an Ticket 5 (gleicher Commit, gleiche Datei) — kann im selben
+Durchgang mit erledigt werden.

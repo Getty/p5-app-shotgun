@@ -1,0 +1,54 @@
+---
+claimed_at: 2026-08-15T16:04:02Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-15T16:04:02Z
+created: 2026-08-14T23:27:45Z
+id: 11
+priority: low
+started: 2026-08-15T15:47:15Z
+status: done
+tags:
+- docs
+- cleanup
+title: 'Kleinkram aus dem Commit-Review: Doku-Ungenauigkeiten, .gitignore, Changes'
+updated: 2026-08-15T16:04:02Z
+---
+
+Sammelticket. Nichts davon ist dringend, alles ist verifiziert.
+
+.claude/agents/shotgun-worker.md
+  - "The sync-script acceptance path is t/01-load.t (loade + smoke)" — Tippfehler
+    "loade", und die Beschreibung ist ueberzogen: die Datei enthaelt nur
+    use_ok("App::Shotgun") plus done_testing. Kein Acceptance-Path.
+
+CLAUDE.md
+  - "prove -l t/  # Run all tests (live FTP/SFTP integration tests are not part
+    of the run)" — die Klammer impliziert, dass es solche Tests gibt. t/ enthaelt
+    ausschliesslich 01-load.t.
+
+.claude/rules/shotgun-rules.md
+  - "After a release, the $VERSION bump in lib/App/Shotgun.pm is a separate,
+    deliberate commit" — in lib/ steht nirgends ein $VERSION. Die Dist laeuft
+    ueber AutoVersion (kein manual_version in dist.ini). Aussage entweder
+    streichen oder auf den tatsaechlichen Mechanismus umschreiben.
+
+.gitignore (Commit 8a30718)
+  - `tasks/` und `config.yml` sind unverankert und greifen damit in jedem
+    Unterverzeichnis. Die karr-Materialisierung liegt im Repo-Root — praezise
+    waere `/tasks/` und `/config.yml`.
+
+dist.ini — copyright_year
+  - 8b290ee hat copyright_year mit der Begruendung "auto-managed" entfernt; der
+    Skill perl-release-author-getty sagt dazu explizit "GETTY has it in ALL
+    distributions, do NOT remove it". 0251a35 hat es als 2026 zurueckgeholt,
+    also im Ergebnis korrekt und konform zum Hausmuster.
+    Optional: App::Shotgun ist 2011 erstveroeffentlicht, `2011-2026` waere
+    genauer — io-k8s-p5 und kubernetes-rest machen es mit Range so.
+    Reine Ermessensfrage des Maintainers.
+
+Changes
+  - Die {{$NEXT}}-Sektion nennt nur "Update to @Author::GETTY plugin bundle" und
+    "Move prereqs to cpanfile". Die POD- und Logger-Umbauten aus 925e9c7 fehlen.
+    Nachziehen, sobald Ticket 5/6/7 gefixt sind — dann in einem Rutsch mit den
+    tatsaechlich veroeffentlichten Aenderungen.

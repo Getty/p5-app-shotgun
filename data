@@ -1,0 +1,47 @@
+---
+claimed_at: 2026-08-15T16:03:35Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-15T16:03:35Z
+created: 2026-08-14T23:26:46Z
+id: 8
+priority: high
+started: 2026-08-15T16:03:35Z
+status: done
+tags:
+- docs
+- agents
+title: Falsche Architektur-Aussagen in CLAUDE.md, rules und shotgun-worker korrigieren
+updated: 2026-08-15T16:03:35Z
+---
+
+Aus Commit 8a30718. Drei sachlich falsche Aussagen, die Agents aktiv in die
+Irre fuehren — die erste ist sogar als schuetzenswerte "deliberate keep"-Regel
+formuliert.
+
+(1) "SFTP ist synchron (Net::SFTP::Foreign + Expect)" — FALSCH.
+    Steht 3x: CLAUDE.md (Architecture), .claude/rules/shotgun-rules.md
+    (Project-specific hazards), .claude/agents/shotgun-worker.md (Key seams).
+    Realitaet: Target/SFTP.pm:7-8 nutzt MooseX::POE::SweetArgs und
+    POE::Component::Generic — ebenfalls event-driven/POE.
+    Net::SFTP::Foreign und Expect stehen nur in einem
+    `if ( 0 ) { require ... }`-Block (Target/SFTP.pm:12-15, autoprereq-Trick
+    fuer Test::Apocalypse::Dependencies) bzw. als
+    "package" => "Net::SFTP::Foreign" (Target/SFTP.pm:96), also als von
+    POE::Component::Generic gewrapptes Paket.
+    Die echte Asymmetrie ist: FTP nutzt eine native POE-Komponente
+    (POE::Component::Client::SimpleFTP), SFTP wrappt ein blockierendes Modul
+    ueber POE::Component::Generic in einen Child-Prozess. Beide sind POE.
+    Die "nicht wegrefactoren"-Regel bleibt sinnvoll — nur die Begruendung muss
+    stimmen.
+
+(2) "Target.pm — abstract base for all targets" / "every target must subclass it"
+    — FALSCH. Target.pm:7 ist `use Moose::Role`. FTP.pm:12 und SFTP.pm:17
+    komponieren mit `with qw(...)`, nicht mit extends.
+    Betrifft CLAUDE.md (Architecture) und shotgun-worker.md (Key seams).
+
+(3) shotgun-worker.md listet POE::Component::Generic bei FTP auf. Gehoert zu
+    SFTP; FTP nutzt POE::Component::Client::SimpleFTP.
+
+Alle drei sind reine Doku — faellt in die Lane des orchestrierenden Agents,
+nicht in die des Workers.

@@ -1,0 +1,42 @@
+---
+claimed_at: 2026-08-15T16:03:50Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-15T16:03:50Z
+created: 2026-08-14T23:27:03Z
+id: 9
+priority: high
+started: 2026-08-15T16:03:50Z
+status: done
+tags:
+- agents
+- config
+title: 'Agent-Frontmatter: allowed-tools greift nicht, Agents haben Vollzugriff'
+updated: 2026-08-15T16:03:50Z
+---
+
+Aus Commit 8a30718.
+
+Beide Agents deklarieren im Frontmatter `allowed-tools:`:
+  .claude/agents/shotgun-worker.md          allowed-tools: Read, Edit, Write, Bash, Glob, Grep
+  .claude/agents/shotgun-release-checker.md allowed-tools: Read, Bash, Glob, Grep
+
+Claude Code liest bei Subagents aber `tools:` — `allowed-tools:` ist der Key
+fuer Slash-Commands (.claude/commands/). Der Key wird still ignoriert.
+
+BEWEIS aus der Laufzeit-Agentenliste dieser Session: beide Agents erscheinen mit
+"(Tools: All tools)". Zum Vergleich zeigt der eingebaute statusline-setup, der
+`tools:` verwendet, korrekt "(Tools: Read, Edit)".
+
+FOLGE: shotgun-release-checker ist explizit als "Audit only — you report
+findings" und "**Never** run dzil release" deklariert, hat faktisch aber
+Write/Edit und uneingeschraenktes Bash. Die Absicherung ist Prosa, keine
+Sandbox.
+
+FIX: allowed-tools -> tools in beiden Dateien. Danach in einer frischen Session
+in der Agentenliste gegenpruefen, dass die Einschraenkung wirklich erscheint.
+
+BREITERER BEFUND (ausserhalb dieses Repos): ueber ~/dev/perl/*/.claude/agents/
+hinweg 149x allowed-tools: vs. 27x tools:. Wenn sich der Fix hier bestaetigt,
+ist das ein repo-uebergreifendes Aufraeumen wert — gehoert dann aber auf ein
+anderes Board, nicht hierher.

@@ -1,0 +1,18 @@
+---
+claimed_at: 2026-08-16T16:08:37Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-16T16:08:37Z
+created: 2026-08-14T20:05:27Z
+id: 1
+priority: medium
+started: 2026-08-15T16:04:19Z
+status: done
+tags:
+- backlog
+- core
+title: netrc support
+updated: 2026-08-16T16:08:37Z
+---
+
+TODO in lib/App/Shotgun.pm: 'support getting user/pass from a .netrc file ( use Net::Netrc ? )' — read host/user/pass from a .netrc file when credentials are not given.

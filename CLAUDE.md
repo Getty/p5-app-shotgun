@@ -16,7 +16,7 @@ Engineering discipline, the delegation lane, and the release policy live in
 `.claude/rules/shotgun-rules.md` — auto-loaded by Claude Code at launch. Don't restate them here.
 
 **Delegate behavior-relevant code instead of editing it yourself** (the rule and rationale are in
-the rules file). Agents in this repo (skills force-loaded via `briefing.skills`):
+the rules file). Agents in this repo (their definitions preload the project skills):
 
 | Task | Agent |
 |---|---|
@@ -25,16 +25,18 @@ the rules file). Agents in this repo (skills force-loaded via `briefing.skills`)
 | Pre-release audit (Changes, cpanfile, dist.ini, build) | `shotgun-release-checker` |
 
 Ticket coordination happens on this repo's karr board (`refs/karr/*`) — `karr list --compact` /
-`karr board` for open work. File bugs found here as tickets. Full command surface: skill `karr`.
+`karr board` for open work. File bugs found here as tickets; the full command surface is in
+`.claude/rules/shotgun-rules.md`.
 
 ## Architecture
 
 - `lib/App/Shotgun.pm` — main app: MooseX::Getopt attributes, logger (Log::Dispatch), the
   central sync/upload mechanism, an explicit "source" attribute.
-- `lib/App/Shotgun/Target.pm` — abstract base for all targets.
-- `lib/App/Shotgun/Target/FTP.pm` / `SFTP.pm` — concrete transports. **FTP is event-driven
-  (POE), SFTP is synchronous (Net::SFTP::Foreign + Expect)** — this asymmetry is deliberate and
-  must not be "unified" away (see rules).
+- `lib/App/Shotgun/Target.pm` — abstract role (`Moose::Role`) that all targets compose.
+- `lib/App/Shotgun/Target/FTP.pm` / `SFTP.pm` — concrete transports. **Both are POE-based**:
+  FTP shells out to the native `POE::Component::Client::SimpleFTP` component, while SFTP wraps
+  `Net::SFTP::Foreign`/`Expect` in a `POE::Component::Generic` child process — this asymmetry is
+  deliberate and must not be "unified" away (see rules).
 - `bin/shotgun` — thin CLI entry point.
 - `ex/sync.pl` — a standalone (insecure) example script kept as reference for one-shot archive
   syncs; prefer `bin/shotgun` + a target for real work.
@@ -42,7 +44,7 @@ Ticket coordination happens on this repo's karr board (`refs/karr/*`) — `karr 
 ## Building and testing
 
 ```bash
-prove -l t/            # Run all tests (live FTP/SFTP integration tests are not part of the run)
+prove -l t/            # Run all tests; the suite ships no live FTP/SFTP integration tests
 dzil test             # Full Dist::Zilla test
 dzil build            # Build distribution
 ```
@@ -58,7 +60,7 @@ dzil build            # Build distribution
 
 Agent/skill/rule material lives under `.claude/`:
 - `rules/shotgun-rules.md` — house rules, auto-loaded (discipline, delegation, coordination, release, hazards)
-- `agents/shotgun-*.md` — the project agent fleet (briefing-aware; skills force-loaded at spawn)
+- `agents/shotgun-*.md` — the project agent fleet (each definition preloads the project skills)
 - `skills/` — `perl-moose`, `perl-release-author-getty`, `perl-release-dist-ini` (hardlinked via
   manage-skills; don't rename, and edit via `cat > .claude/skills/<skill>/SKILL.md` — **not** the
   `Edit`/`Write` tools, which mint a new inode and break the shared hardlink; see skill

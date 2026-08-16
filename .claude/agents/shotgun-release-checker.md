@@ -2,7 +2,7 @@
 name: shotgun-release-checker
 description: "Audit App::Shotgun before release — Changes current, cpanfile deps present and Getty-authored ones pinned to latest CPAN, dist.ini [@Author::GETTY] sane, dzil build clean. Reports; does not fix or release."
 model: sonnet
-allowed-tools: Read, Bash, Glob, Grep
+tools: Read, Bash, Glob, Grep
 briefing:
   skills:
     - perl-release-author-getty

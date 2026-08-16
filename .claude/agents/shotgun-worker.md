@@ -2,7 +2,7 @@
 name: shotgun-worker
 description: "Default App::Shotgun worker — implement, refactor, debug, and test code in this distribution. Pre-loaded with Moose, the Getty dist-zilla release conventions, and the target (FTP/SFTP) specifics."
 model: inherit
-allowed-tools: Read, Edit, Write, Bash, Glob, Grep
+tools: Read, Edit, Write, Bash, Glob, Grep
 briefing:
   skills:
     - perl-moose
@@ -26,9 +26,9 @@ Workflow when fixing bugs:
 This distribution is a `[@Author::GETTY]` Dist::Zilla project. Archive building happens in `ex/sync.pl`, a Genesis-style example — never build a new standalone script when `bin/shotgun` + a target module already do the job.
 
 Key seams, in the order you will meet them:
-- **`lib/App/Shotgun/Target.pm`** — the abstract base (role-like) for targets; every target must subclass it. `FTP` and `SFTP` under `lib/App/Shotgun/Target/` are the concrete implementations. A new transport means a new target subclass, not a rewrite of the core sync loop.
-- **The FTP/SFTP asymmetry** is deliberate: FTP goes through POE (`MooseX::POE::SweetArgs`, `POE::Component::Client::SimpleFTP`, `POE::Component::Generic`); SFTP is synchronous (`Net::SFTP::Foreign`, `Expect`). Do not "unify" them into one stack "for cleanliness" without an ADR-style justification — the mechanisms are intentional.
-- The sync-script acceptance path is `t/01-load.t` (loade + smoke) — the suite is deliberately thin. Don't invent a heavyweight test harness; add focused regression tests per fix.
+- **`lib/App/Shotgun/Target.pm`** — an abstract `Moose::Role` that every target composes (`with qw(App::Shotgun::Target …)`), not a base class to subclass. `FTP` and `SFTP` under `lib/App/Shotgun/Target/` are the concrete implementations. A new transport composes the `App::Shotgun::Target` role, not a rewrite of the core sync loop.
+- **The FTP/SFTP asymmetry** is deliberate: **both are POE-based** — FTP drives the native `POE::Component::Client::SimpleFTP` component; SFTP wraps `Net::SFTP::Foreign`/`Expect` in a `POE::Component::Generic` child process. Do not "unify" them onto one stack "for cleanliness" without an ADR-style justification — the mechanisms are intentional.
+- The sync-script acceptance path is `t/01-load.t` (a bare `use_ok` + `done_testing`) — the suite is deliberately thin. Don't invent a heavyweight test harness; add focused regression tests per fix.
 
 ## Verification
 

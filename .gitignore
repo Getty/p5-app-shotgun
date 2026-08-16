@@ -10,6 +10,6 @@ App-Shotgun-*
 .claude/todos/
 .claude/projects/
 
-# karr materialized task view -- never commit
-tasks/
-config.yml
+# karr materialized task view -- never commit (lives in repo root)
+/tasks/
+/config.yml

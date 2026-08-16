@@ -2,8 +2,8 @@
 
 Apply to every task in this repository unless explicitly overridden. Bias: caution over speed
 on non-trivial work; use judgment on trivial tasks. Loaded automatically by Claude Code at
-launch (same priority as `CLAUDE.md`). Subagents get their discipline from the skills
-force-loaded via `briefing.skills` — this file is for the orchestrating agent.
+launch (same priority as `CLAUDE.md`). Subagents get their discipline from the skills their own agent definitions
+(`.claude/agents/shotgun-*.md`) declare — this file is for the orchestrating agent.
 
 ## Engineering discipline
 
@@ -33,9 +33,10 @@ Depends on whether the Agent/Task tool is available to you.
 
 - **You can spawn subagents** (orchestrating main agent): Do NOT touch behavior-relevant code
   yourself — delegate to this repo's worker. Your lane: coordinate, inspect, plan, review diffs,
-  run tests, manage git, edit non-behavioral docs. Why: only the `shotgun-*` agents get their
-  skills force-loaded via `briefing.skills`; you get no briefing and would touch internals with
-  too little context. Specialist lanes:
+  run tests, manage git, edit non-behavioral docs. Why: only the `shotgun-*` agents ship with
+  the project skills (perl-moose, perl-release-author-getty, perl-release-dist-ini) preloaded via
+  their agent definitions; the orchestrator has no briefing and would touch internals with too
+  little context. Specialist lanes:
 
   | Task | Agent |
   |---|---|
@@ -61,7 +62,7 @@ always in scope, don't invoke a skill first, just use it:
 - `karr move ID in-progress --claim NAME` — start · `karr handoff ID --claim NAME --note "…"` — to review
 - mutating commands auto-sync; `karr sync --pull|--push` for explicit exchange
 
-Bugs found while working become tickets on this board. Full command surface: skill `karr`.
+Bugs found while working become tickets on this board.
 
 **Serialize board mutations when fanning out.** Keep implementation parallel if you like, but
 collect results and then loop `karr move`/`handoff`/`sync` sequentially — N of them landing at
@@ -71,16 +72,16 @@ once is a resource event, not a cheap command.
 
 `prove -l t/` / `dzil build` / `dzil test` are fine anytime. `dzil release` and any CPAN upload
 are STRICTLY forbidden without the maintainer's explicit go-ahead — even if a plan or STATUS
-document lists "release" as the next step. After a release, the `$VERSION` bump in
-`lib/App/Shotgun.pm` is a separate, deliberate commit.
+document lists "release" as the next step.
 
 ## Project-specific hazards
 
-- **The FTP/SFTP transport asymmetry is a deliberate keep.** FTP is event-driven (POE:
-  `POE::Component::Client::SimpleFTP`, `MooseX::POE::SweetArgs`); SFTP is synchronous
-  (`Net::SFTP::Foreign`, `Expect`). Every naive "let's unify these onto one stack" review will
-  flag it — don't let it be refactored away without an ADR-style justification. Adding a third
-  transport means a new `Target::*` subclass, not re-architecting the core.
+- **The FTP/SFTP transport asymmetry is a deliberate keep.** Both are POE-based: FTP drives the
+  native `POE::Component::Client::SimpleFTP` component; SFTP wraps `Net::SFTP::Foreign`/`Expect`
+  in a `POE::Component::Generic` child process. Every naive "let's unify these onto one stack"
+  review will flag it — don't let it be refactored away without an ADR-style justification.
+  Adding a third transport composes the `App::Shotgun::Target` role, not a fresh subclass of the
+  core.
 - **Keep the suite thin by intent.** `t/01-load.t` is minimal on purpose; deep integration tests
   need a live FTP/SFTP server and are not part of the default run. Don't add a heavyweight
   harness.

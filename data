@@ -1,0 +1,19 @@
+---
+claimed_at: 2026-08-16T16:08:42Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-16T16:08:42Z
+created: 2026-08-14T20:05:33Z
+id: 2
+priority: low
+started: 2026-08-15T16:04:24Z
+status: done
+tags:
+- backlog
+- core
+- feature
+title: transferlog
+updated: 2026-08-16T16:08:42Z
+---
+
+Commented-out  attribute in lib/App/Shotgun.pm: log transfers to a file somewhere.

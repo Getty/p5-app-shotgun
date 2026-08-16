@@ -5,11 +5,14 @@ use warnings;
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
 use Moose;
-use MooseX::Getopt;
 use MooseX::Types::Path::Class;
 use Cwd qw( getcwd );
 use Path::Class::Dir;
+use Path::Class::File;
 use Log::Dispatch;
+use Net::Netrc;
+
+with qw( MooseX::Getopt );
 
 has logger => (
 	is      => 'ro',
@@ -25,34 +28,51 @@ has logger => (
 		debug => 'debug',
 		info  => 'info',
 		warn  => 'warn',
-		error => 'error',
 	},
 );
 
-# TODO unimplemented stuff
+=attr transferlog
 
-# support getting user/pass from a .netrc file ( use Net::Netrc ? )
+Path to a file that every successful transfer is logged to, one line per transfer.
 
-## log our transfers to a file somewhere
-#has transferlog => (
-#	isa => 'Str',
-#	is => 'ro',
-#	predicate => 'has_transferlog',
-#);
-#
-## enable full parallel uploads to ALL targets at the same time
-#has parallel => (
-#	isa => 'Bool',
-#	is => 'ro',
-#	default => 0,
-#);
-#
-## get file list from the source, recursively ( ls -lR basically )
-#has filerecursive => (
-#	isa => 'Bool',
-#	is => 'ro',
-#	default => 0,
-#);
+If not set, transfers are not logged to a file.
+
+=cut
+
+has transferlog => (
+	isa => 'Str',
+	is => 'ro',
+	predicate => 'has_transferlog',
+);
+
+=attr parallel
+
+Enable full parallel uploads to ALL targets at the same time, instead of the
+default behaviour of uploading one file to one target at a time.
+
+The default is: 0 ( disabled )
+
+=cut
+
+has parallel => (
+	isa => 'Bool',
+	is => 'ro',
+	default => 0,
+);
+
+=attr filerecursive
+
+Get the file list from the source directory, recursively ( like C<ls -lR> ).
+
+The default is: 0 ( disabled )
+
+=cut
+
+has filerecursive => (
+	isa => 'Bool',
+	is => 'ro',
+	default => 0,
+);
 
 has source => (
 	isa => 'Str',
@@ -95,8 +115,13 @@ has files => (
 	traits  => ['Array'],
 	is      => 'ro',
 	isa     => 'ArrayRef[Str]',
+	lazy    => 1, # must be lazy: the default reads $self->source, which is not
+	              # yet initialized when a non-lazy default is evaluated
 	default => sub {
 		my $self = shift;
+
+		return \@{ $self->_recursive_filelist } if $self->filerecursive;
+
 		my @files;
 		my $ok;
 		if ( $self->has_filelist ) {
@@ -123,8 +148,38 @@ has files => (
 =attr files
 
 Internal ArrayRef containing the files to upload. Built from either L</filelist> or L</file>.
+When L</filerecursive> is set, the list is instead built by scanning the L</source> directory recursively.
 
 =cut
+
+sub _recursive_filelist {
+	my $self = shift;
+
+	my $source = Path::Class::Dir->new( $self->source );
+
+	# We walk the source directory and produce paths relative to the source,
+	# matching the relative file list from filelist/file.
+	my @files;
+	walkdir( dir => $source, rel => undef, files => \@files );
+	return \@files;
+}
+
+sub walkdir {
+	my %args = @_;
+	my $root = $args{'dir'};
+
+	for ( $root->children ) {
+		my $path = $_;
+		my $rel  = defined $args{'rel'} ? $args{'rel'} . "/" . $path->basename : $path->basename;
+		if ( $path->is_dir ) {
+			walkdir( dir => $path, rel => $rel, files => $args{'files'} );
+		} else {
+			push @{ $args{'files'} }, $rel;
+		}
+	}
+
+	return;
+}
 
 has targets => (
 	traits => ['NoGetopt'],
@@ -301,6 +356,13 @@ sub _init {
 			$t->{'path'} = Path::Class::Dir->new( $t->{'path'} )->absolute( '/' );
 		}
 
+		# pull user/pass from a .netrc file if a username was not given explicitly
+		if ( ! exists $t->{'username'} ) {
+			my $netrc = $self->_netrc_credentials( $t->{'hostname'} );
+			$t->{'username'} = $netrc->{'username'} if ! exists $t->{'username'} && defined $netrc->{'username'};
+			$t->{'password'} = $netrc->{'password'} if ! exists $t->{'password'} && defined $netrc->{'password'};
+		}
+
 		my $type = delete $t->{'type'};
 		eval "use App::Shotgun::Target::$type";
 		if ( $@ ) {
@@ -310,6 +372,39 @@ sub _init {
 			$self->new_connection( $connection );
 		}
 	}
+}
+
+sub _netrc_credentials {
+	my( $self, $hostname ) = @_;
+
+	return {} if ! defined $hostname;
+
+	my $mach = Net::Netrc->lookup( $hostname );
+	if ( ! $mach ) {
+		# try the default entry
+		$mach = Net::Netrc->lookup( 'default' );
+	}
+	return {} if ! $mach;
+
+	my %ret;
+	$ret{'username'} = $mach->login    if defined $mach->login;
+	$ret{'password'} = $mach->password if defined $mach->password;
+	return \%ret;
+}
+
+sub _log_transfer {
+	my( $self, $target ) = @_;
+
+	return if ! $self->has_transferlog;
+
+	open( my $fh, '>>', $self->transferlog ) or do {
+		$self->logger->warn( "Unable to open transferlog '" . $self->transferlog . "': $!" );
+		return;
+	};
+	print {$fh} scalar( localtime ) . " " . $target->name . " " . $self->current_file . "\n";
+	close( $fh ) or $self->logger->warn( "Unable to close transferlog '" . $self->transferlog . "': $!" );
+
+	return;
 }
 
 sub _error {
@@ -347,7 +442,15 @@ sub _ready {
 	# got here, all of our targets are ready!
 	# start the process by transferring the first file!
 	$self->current_file( $self->next_file );
-	$self->connections->[ $self->current_connection ]->yield( 'transfer' );
+
+	if ( $self->parallel ) {
+		# fire up a transfer on ALL targets at the same time
+		foreach my $c ( @{ $self->connections } ) {
+			$c->yield( 'transfer' );
+		}
+	} else {
+		$self->connections->[ $self->current_connection ]->yield( 'transfer' );
+	}
 
 	return;
 }
@@ -359,6 +462,37 @@ sub _xferdone {
 	# convenience, really - so I don't have to type this in all the targets :)
 	$self->logger->debug( "Target [" . $target->name . "] finished transferring '" . $self->current_file . "'" );
 	$target->state( 'ready' );
+
+	# log this transfer to the transferlog file if configured
+	$self->_log_transfer( $target );
+
+	if ( $self->parallel ) {
+		# are all of our targets done with the current file?
+		foreach my $t( @{ $self->connections } ) {
+			if ( $t->state ne 'ready' ) {
+				return;
+			}
+		}
+
+		# got here, all targets are done with the current file
+		if ( $self->num_files ) {
+			# fire up the next file on all targets at the same time
+			$self->current_file( $self->next_file );
+			foreach my $c ( @{ $self->connections } ) {
+				$c->yield( 'transfer' );
+			}
+		} else {
+			# SHOTGUN DONE
+			$self->success( 1 );
+
+			# Tell all of our targets to shutdown
+			foreach my $t ( @{ $self->connections } ) {
+				$t->yield( 'shutdown' );
+			}
+		}
+
+		return;
+	}
 
 	# Okay, move on to the next connection
 	$self->current_connection( $self->current_connection + 1 );

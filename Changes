@@ -3,6 +3,9 @@ Revision history for App-Shotgun
 {{$NEXT}}
     - Update to @Author::GETTY plugin bundle
     - Move prereqs to cpanfile
+    - Rewrite POD to @Author::GETTY PodWeaver conventions
+    - Compose MooseX::Getopt as a role, drop the unused logger error handler
+    - Add getopt and logger-warning regression tests (t/02-getopt.t, t/03-logger-error-warning.t)
 
 0.001     2011-05-17 05:11:32 Europe/Berlin
     - First release

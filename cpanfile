@@ -1,6 +1,8 @@
 requires 'Moose', '2.0007';
 requires 'MooseX::Types::Path::Class', '0.05';
 requires 'Path::Class', '0.23';
+requires 'Log::Dispatch', '2.00';
+requires 'Net::Netrc';
 requires 'MooseX::Getopt', '0.37';
 requires 'MooseX::LogDispatch', '1.2002';
 requires 'POE::Component::Client::SimpleFTP', '0.003';

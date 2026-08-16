@@ -1,0 +1,19 @@
+---
+claimed_at: 2026-08-16T16:08:53Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-16T16:08:53Z
+created: 2026-08-14T20:05:44Z
+id: 4
+priority: low
+started: 2026-08-15T16:04:35Z
+status: done
+tags:
+- backlog
+- core
+- feature
+title: recursive file list
+updated: 2026-08-16T16:08:53Z
+---
+
+Commented-out  attribute (Bool, default 0) in lib/App/Shotgun.pm: get file list from the source, recursively (ls -lR basically).

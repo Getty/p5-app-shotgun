@@ -1,0 +1,19 @@
+---
+claimed_at: 2026-08-16T16:08:48Z
+claimed_by: shotgun
+class: standard
+completed: 2026-08-16T16:08:48Z
+created: 2026-08-14T20:05:39Z
+id: 3
+priority: low
+started: 2026-08-15T16:04:30Z
+status: done
+tags:
+- backlog
+- core
+- feature
+title: parallel uploads
+updated: 2026-08-16T16:08:48Z
+---
+
+Commented-out  attribute (Bool, default 0) in lib/App/Shotgun.pm: enable full parallel uploads to ALL targets at the same time.

@@ -1,5 +1,16 @@
 {
-  "enabledPlugins": {
-    "superpowers@claude-plugins-official": true
-  }
+   "enabledPlugins" : {
+      "briefing@getty" : true,
+      "ruler@getty" : true,
+      "skilletor@getty" : true,
+      "superpowers@claude-plugins-official" : true
+   },
+   "extraKnownMarketplaces" : {
+      "getty" : {
+         "source" : {
+            "repo" : "Getty/marketplace",
+            "source" : "github"
+         }
+      }
+   }
 }

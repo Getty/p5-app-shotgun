@@ -1,69 +1,50 @@
-# CLAUDE.md
+# App-Shotgun
 
-This file provides project guidance for Claude Code and similar coding agents.
+Mass upload of files over the wire: a file list goes to one or more targets, FTP or
+SFTP, and every file reaches every target on every run. Nothing is compared — no size,
+no timestamp, no checksum. That is the name and the promise.
 
-## Project Overview
+One Moose class, one role, two transports, one CLI — `lib/App/Shotgun.pm`,
+`lib/App/Shotgun/Target.pm` (`Moose::Role`), `lib/App/Shotgun/Target/FTP.pm`,
+`lib/App/Shotgun/Target/SFTP.pm`, `bin/shotgun` — plus four tests and the example
+`ex/sync.pl`. The module map, the sync loop, the target state machine and the known
+traps live in skill `app-shotgun-core` — they are not repeated here.
 
-`App::Shotgun` — **mass upload of files via SCP/FTP/… over the wire**.
+Released to CPAN as `App-Shotgun`, built with `Dist::Zilla` via `[@Author::GETTY]`.
 
-A Moose-based Dist::Zilla distribution using `[@Author::GETTY]`. It mirrors a target abstraction
-over `lib/App/Shotgun/Target/` with concrete `FTP` and `SFTP` transports plus a thin CLI
-(`bin/shotgun`) and a Genesis-style example script (`ex/sync.pl`).
+## Delegation
 
-## House rules, agents & coordination
-
-Engineering discipline, the delegation lane, and the release policy live in
-`.claude/rules/shotgun-rules.md` — auto-loaded by Claude Code at launch. Don't restate them here.
-
-**Delegate behavior-relevant code instead of editing it yourself** (the rule and rationale are in
-the rules file). Agents in this repo (their definitions preload the project skills):
+Delegate behavior-relevant code to the right agent instead of touching it yourself —
+the principle and the lane boundaries are in
+`.claude/rules/app-shotgun-rules.md`.
 
 | Task | Agent |
 |---|---|
-| Implement / refactor / debug / behavior-relevant code, new target transports | `shotgun-worker` (default) |
-| Write/extend tests under `t/` | `shotgun-worker` |
-| Pre-release audit (Changes, cpanfile, dist.ini, build) | `shotgun-release-checker` |
+| Implement / refactor / debug behavior-relevant code, new transports | `app-shotgun-worker` (default) |
+| Write/extend tests under `t/` | `app-shotgun-worker` |
+| Commits, `Changes`, card → done, pre-release audit | `app-shotgun-release-manager` |
 
-Ticket coordination happens on this repo's karr board (`refs/karr/*`) — `karr list --compact` /
-`karr board` for open work. File bugs found here as tickets; the full command surface is in
-`.claude/rules/shotgun-rules.md`.
+The agents carry their skills via `briefing.skills` (see `.claude/agents/`); the
+main agent delegates rather than loading them. Skill sources live under
+`.claude/skills/` — `getty-perl-core`, `getty-perl-moose`, `getty-perl-pod` and the
+karr skills are installed from the shared sources; `app-shotgun-core` is owned by
+this repo.
 
-## Architecture
+Work is coordinated on the repo's `karr` board (`karr board`).
 
-- `lib/App/Shotgun.pm` — main app: MooseX::Getopt attributes, logger (Log::Dispatch), the
-  central sync/upload mechanism, an explicit "source" attribute.
-- `lib/App/Shotgun/Target.pm` — abstract role (`Moose::Role`) that all targets compose.
-- `lib/App/Shotgun/Target/FTP.pm` / `SFTP.pm` — concrete transports. **Both are POE-based**:
-  FTP shells out to the native `POE::Component::Client::SimpleFTP` component, while SFTP wraps
-  `Net::SFTP::Foreign`/`Expect` in a `POE::Component::Generic` child process — this asymmetry is
-  deliberate and must not be "unified" away (see rules).
-- `bin/shotgun` — thin CLI entry point.
-- `ex/sync.pl` — a standalone (insecure) example script kept as reference for one-shot archive
-  syncs; prefer `bin/shotgun` + a target for real work.
+## State of the code
 
-## Building and testing
+The suite does not run here: `prove -lr t/` fails in all four files because
+`MooseX::Types::Path::Class`, `MooseX::Getopt`, `MooseX::LogDispatch`,
+`POE::Component::Client::SimpleFTP`, `POE::Component::Generic`,
+`MooseX::POE::SweetArgs` and `Expect` are not installed. The suite covers the pure
+parts only — the file list, the netrc lookup, the transferlog, the flags — and says
+nothing about the transports and nothing about the sync loop.
 
-```bash
-prove -l t/            # Run all tests; the suite ships no live FTP/SFTP integration tests
-dzil test             # Full Dist::Zilla test
-dzil build            # Build distribution
-```
+Six defects are known and recorded on the board: a failed read in the FTP transport
+is taken for the end of the file, the target type is loaded with a string eval, the
+example script ships a password in the tarball, the sync loop and the transports have
+no tests at all, the CLI and module POD are unfinished, and there is no CI.
 
-## Documentation and release notes
-
-- Keep runtime dependencies in `cpanfile`, not `dist.ini`.
-- POD follows `[@Author::GETTY]` conventions (inline `=attr`/`=method`, no manual NAME/VERSION/AUTHOR sections).
-- `# ABSTRACT:` comment required on every `.pm` file.
-- Release policy (`dzil release` only with explicit go-ahead) is in `.claude/rules/shotgun-rules.md`.
-
-## Repository metadata
-
-Agent/skill/rule material lives under `.claude/`:
-- `rules/shotgun-rules.md` — house rules, auto-loaded (discipline, delegation, coordination, release, hazards)
-- `agents/shotgun-*.md` — the project agent fleet (each definition preloads the project skills)
-- `skills/` — `perl-moose`, `perl-release-author-getty`, `perl-release-dist-ini` (hardlinked via
-  manage-skills; don't rename, and edit via `cat > .claude/skills/<skill>/SKILL.md` — **not** the
-  `Edit`/`Write` tools, which mint a new inode and break the shared hardlink; see skill
-  `manage-skills`)
-
-Keep this file focused on the repository; behavioral rules belong in `rules/`, not here.
+The release path is blocked as well: there is no `LICENSE` file, so `dzil build`
+aborts before it writes an archive.

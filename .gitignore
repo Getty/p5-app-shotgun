@@ -1,4 +1,4 @@
-App-Shotgun-*
+/App-Shotgun-*
 .build
 
 # Claude Code — commit: skills/, agents/, hooks/, settings.json
@@ -13,3 +13,10 @@ App-Shotgun-*
 # karr materialized task view -- never commit (lives in repo root)
 /tasks/
 /config.yml
+
+# skilletor: committe Config + Ignore-Block
+!.claude/skilletor.json
+!.claude/.gitignore
+
+# Claude Code worktrees (claude --worktree / isolated agents) -- never commit
+/.claude/worktrees/

@@ -15,8 +15,8 @@ Released to CPAN as `App-Shotgun`, built with `Dist::Zilla` via `[@Author::GETTY
 ## Delegation
 
 Delegate behavior-relevant code to the right agent instead of touching it yourself —
-the principle and the lane boundaries are in
-`.claude/rules/app-shotgun-rules.md`.
+the principle is a shared house rule (skilletor bundle `getty-cpan-dist@getty`); the lane
+boundaries are in `.claude/rules/app-shotgun-rules.md`.
 
 | Task | Agent |
 |---|---|

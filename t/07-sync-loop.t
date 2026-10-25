@@ -25,13 +25,15 @@ use_ok( 'App::Shotgun' );
 	sub yield {
 		my ( $self, $event ) = @_;
 		push @{ $self->{events} }, $event;
+		# a real transport is busy from the moment it is told to transfer; its
+		# xferdone only comes after network round trips
+		$self->state( 'xfer' ) if $event eq 'transfer';
 		push @QUEUE, [ $self, $event ];
 		return;
 	}
 	sub deliver {
 		my ( $self, $event ) = @_;
 		if ( $event eq 'transfer' ) {
-			$self->state( 'xfer' );
 			push @LOG, $self->name . ':' . $self->{shotgun}->current_file;
 			$self->{shotgun}->_xferdone( $self );
 		}

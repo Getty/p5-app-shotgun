@@ -1,0 +1,21 @@
+---
+claimed_at: 2026-10-25T05:39:41Z
+claimed_by: offen-2610
+class: standard
+completed: 2026-10-25T05:39:41Z
+created: 2026-10-21T02:48:54Z
+id: 18
+priority: high
+started: 2026-10-25T05:06:48Z
+status: done
+tags:
+- dist
+- build
+title: 'Das Dist ist nicht baubar: LICENSE fehlt, Changes laesst vier Features aus,
+  ex/sync.pl mit Zugangsdaten'
+updated: 2026-10-25T05:39:41Z
+---
+
+Drei Dinge verhindern eine saubere Distribution: - LICENSE: dzil build bricht mit der Meldung des Bundles ab, dass kein LICENSE in der Distribution ist. Fix: dzil genlicense ausfuehren und die Datei danach stagen - das Staging ist nicht optional, das Bundle sammelt nur getrackte Dateien, ein untracked LICENSE laesst den Build mit derselben Meldung scheitern. - Changes: der Abschnitt NEXT existiert, nennt aber nur die Arbeit am GETTY-Bundle. Die vier Features, die der letzte Commit ausgeliefert hat, fehlen: netrc, transferlog, parallel und die rekursive Dateiliste. Der Abschnitt deckt damit nicht ab, was seit der letzten Veroeffentlichung dazugekommen ist. Fix: je Feature eine Zeile mit der Wirkung, nicht mit dem Dateinamen. - ex/sync.pl: die Datei steht im Quellbaum und wandert mit in das Archiv. Sie enthaelt sechs Targets mit dem Benutzernamen apoc, dem Passwort apoc und der internen Adresse 192.168.0.55. Damit liegen Zugangsdaten und interne Hosts oeffentlich im Archiv. Fix: die Zugangsdaten aus der Datei entfernen und aus der Umgebung oder einem netrc-Eintrag beziehen, alternativ die Beispielziele durch Platzhalter ersetzen und ex aus dem Dist ausschliessen. Test: der erzeugte Build muss durchlaufen, die Changes-Datei muss jede der vier Funktionen nennen, und ein grep ueber das entpackte Tarball darf keine Zeile mit einem Passwort und keine mit der internen Adresse finden.
+
+Commit 6f8cd37 auf offen-2610. dzil build laeuft durch (LICENSE getrackt); Changes nennt netrc, transferlog, parallel, recursive; Grep ueber gebauten Tarball: keine Zugangsdaten/192.168 in lib, bin, ex. Entscheidung: Platzhalter-Host + Login aus ~/.netrc, ex bleibt im Dist (kein Ausschluss). Hinweis: Die Changes-Zeile mit Dateinamen der Tests wurde auf 78 Spalten gekuerzt.

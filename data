@@ -1,0 +1,25 @@
+---
+claimed_at: 2026-10-25T05:39:26Z
+claimed_by: offen-2610
+class: standard
+completed: 2026-10-25T05:39:26Z
+created: 2026-10-21T02:38:05Z
+id: 15
+priority: medium
+started: 2026-10-25T05:06:32Z
+status: done
+tags:
+- tests
+title: Keine Tests fuer die Sync-Schleife und die beiden Transports
+updated: 2026-10-25T05:39:26Z
+---
+
+Die Suite in t/ deckt nur Attribute, transferlog, die rekursive Dateiliste, netrc und parallel ab. Die Ablaufsteuerung in lib/App/Shotgun.pm, also _ready, _xferdone, _error, current_connection und current_file, laeuft ungetestet, ebenso die Zustandsmaschine init, ready, testdir, dir, xfer in den beiden Transports. Ein Fehler in der Reihenfolge Datei gegen Target bleibt damit unentdeckt. Fix: einen Test mit einem Stub-Target schreiben, das ready meldet, eine Datei transferiert und xferdone zurueckschickt, und damit die Reihenfolge, den Wechsel auf das naechste Target und den Abbruch nach der letzten Datei pruefen. Der Test darf keine Netzwerkverbindung brauchen.
+
+Commit 55c9330 auf offen-2610. Gedeckt: Sync-Schleife (_ready, _xferdone, _error, current_connection/current_file) per Stub. Mutation (naechste Datei beim Targetwechsel) macht t/07 rot. NICHT gedeckt: Zustandsmaschine testdir/dir/xfer in FTP/SFTP - braucht Server/POE-Session, laut Worker-Brief der Karte ueberlassen; Karte bleibt deshalb teilweise offen.
+
+Also found: Zustandsmaschine der Transports weiter ungetestet (braucht Server). Also found: Tarball enthaelt misc/agent-context (CLAUDE.md, .claude/*) mit Prosa ueber 'password'; Abstract von bin/shotgun nennt 'SCP', gibt es nicht; netrc-'default'-Fallback (Falle 7) greift jetzt auch fuer ex/sync.pl; gebaute Dist setzt $VERSION ohne Leerzeile (Warnung PkgVersion); Last >6 waehrend des Auftrags (fuenf Pruefungen), Loadguard lehnte prove zeitweise ab.
+
+Rest von k15, Commit 3d8d38c: t/08-live-transports.t gegen echte Server (Docker atmoz/sftp, delfer/alpine-ftp-server, 127.0.0.1, Container danach gestoppt+entfernt). Live: 29 Tests gruen (FTP+SFTP); ohne SHOTGUN_TEST_FTP/SFTP: sauberer skip, Suite 63 Tests gruen. Mutation (put_data auf 10 Byte gekuerzt) macht den FTP-Teil rot. Env: SHOTGUN_TEST_FTP|SFTP=host:port:user:pass:basepath. Befund: SFTP-Transport reicht keine ssh-Optionen durch; unbekannter Host-Key laesst die Verbindung stehen ('stalled'), der Test umgeht das mit einem ssh-Wrapper im PATH (kein lib-Eingriff). Also found: Host-Key-Pruefung nicht konfigurierbar; Transport schreibt [debug]-Zeilen auf STDERR trotz Logger-Option.
+
+Nachtrag auf Anweisung des Koordinators: SFTP ssh_options + strenger Host-Key (Commit dae4cb2), Debug-Zeilen ueber den Logger (Commit cdef9f3). Abweichung: BatchMode=yes nur ohne Passwort, mit Passwort wuerde ssh den Passwort-Login abschalten. Der Fehler nennt Host:Port, known_hosts und ssh_options; ssh selbst liefert nur 'exited with error code 255' bzw. 'Connection ... broken'. Unbekannter Host-Key endet nach ca. 3 s (vorher: Haenger, Alarm). Rot gegen alt belegt (t/09 mit altem SFTP.pm; t/08 mit altem Logger). Suite offline 74 Tests gruen, live (FTP+SFTP) gruen, Container entfernt.

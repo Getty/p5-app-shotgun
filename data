@@ -1,0 +1,19 @@
+---
+claimed_at: 2026-10-25T05:39:36Z
+claimed_by: offen-2610
+class: standard
+completed: 2026-10-25T05:39:36Z
+created: 2026-10-21T02:38:13Z
+id: 17
+priority: medium
+started: 2026-10-25T05:06:43Z
+status: done
+tags:
+- ci
+title: 'Keine CI: die Testsuite laeuft bei keinem Push'
+updated: 2026-10-25T05:39:36Z
+---
+
+Im Repo liegt kein .github-Ordner und keine andere CI-Konfiguration. Die Testsuite laeuft nur lokal, wenn jemand daran denkt. Fix: eine GitHub-Actions-Workflow-Datei anlegen, die bei einem Push und bei einem Pull Request die Testsuite startet. Die Abhaengigkeiten ueber cpanm aus der cpanfile installieren und den Test ohne Netzwerk laufen lassen, damit weder FTP noch SFTP gebraucht wird. Die Workflow-Datei braucht keine Geheimnisse und keine Zugaenge.
+
+Commit 3dd0fe3 auf offen-2610; Workflow ohne Secrets, Tests laufen offline (Stubs). Kein Changes-Eintrag (nicht nutzersichtbar). Lokal nicht ausfuehrbar (GitHub Actions).

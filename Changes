@@ -1,8 +1,16 @@
 Revision history for App-Shotgun
 
 {{$NEXT}}
-    - Write the shotgun command line documentation: name, synopsis, a description
-      of the upload order and a section for every option
+    - Read the login of a target without username from ~/.netrc, so no
+      credentials have to be given on the command line
+    - Log every successful transfer to a file with --transferlog
+    - Upload to all targets at the same time with --parallel instead of one
+      target after the other
+    - Build the file list from the source directory, including all
+      subdirectories, with --filerecursive
+    - Ship the example script with placeholder hosts and without credentials
+    - Write the shotgun command line documentation: name, synopsis, a
+      description of the upload order and a section for every option
     - Target types are checked against the known transports (FTP, SFTP) and
       loaded without a string eval, so a crafted target string can no longer
       run code
@@ -12,7 +20,7 @@ Revision history for App-Shotgun
     - Move prereqs to cpanfile
     - Rewrite POD to @Author::GETTY PodWeaver conventions
     - Compose MooseX::Getopt as a role, drop the unused logger error handler
-    - Add getopt and logger-warning regression tests (t/02-getopt.t, t/03-logger-error-warning.t)
+    - Add getopt and logger-warning regression tests
 
 0.001     2011-05-17 05:11:32 Europe/Berlin
     - First release

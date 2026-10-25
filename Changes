@@ -1,6 +1,9 @@
 Revision history for App-Shotgun
 
 {{$NEXT}}
+    - Target types are checked against the known transports (FTP, SFTP) and
+      loaded without a string eval, so a crafted target string can no longer
+      run code
     - FTP upload: a file that cannot be read completely is now reported as an
       error instead of being closed as a successful, truncated upload
     - Update to @Author::GETTY plugin bundle

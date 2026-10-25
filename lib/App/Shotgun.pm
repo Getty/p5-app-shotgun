@@ -14,6 +14,9 @@ use Net::Netrc;
 
 with qw( MooseX::Getopt );
 
+# the transports that may be named in a target, checked before anything is loaded
+my @TARGET_TYPES = qw( FTP SFTP );
+
 has logger => (
 	is      => 'ro',
 	isa     => 'Log::Dispatch',
@@ -364,13 +367,13 @@ sub _init {
 		}
 
 		my $type = delete $t->{'type'};
-		eval "use App::Shotgun::Target::$type";
-		if ( $@ ) {
-			die "Unknown target type: $type - $@";
-		} else {
-			my $connection = "App::Shotgun::Target::$type"->new( %$t, shotgun => $self );
-			$self->new_connection( $connection );
+		if ( ! grep { $_ eq $type } @TARGET_TYPES ) {
+			die "Unknown target type: $type (known: " . join( ', ', @TARGET_TYPES ) . ")";
 		}
+		my $class = "App::Shotgun::Target::$type";
+		( my $file = "$class.pm" ) =~ s{::}{/}g;
+		require $file;
+		$self->new_connection( $class->new( %$t, shotgun => $self ) );
 	}
 }
 

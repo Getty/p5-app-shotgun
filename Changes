@@ -1,6 +1,8 @@
 Revision history for App-Shotgun
 
 {{$NEXT}}
+    - FTP and SFTP targets log their debug messages through the logger of
+      the App::Shotgun object, so a logger given by the caller is respected
     - SFTP targets check the host key strictly: an unknown or changed host key
       ends the run within seconds with an error naming the host, instead of
       the connection stalling

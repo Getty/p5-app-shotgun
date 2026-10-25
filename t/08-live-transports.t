@@ -140,6 +140,8 @@ sub shoot {
 	if ( ! $pid ) {
 		close( $r );
 		alarm 90; # a stuck transport must fail the test, not hang it
+		my $stderr = File::Spec->catfile( $source, "stderr.$$" );
+		open( STDERR, '>', $stderr ) or die "cannot redirect STDERR: $!";
 		my $shotgun = App::Shotgun->new(
 			source  => $source,
 			files   => $files,
@@ -155,6 +157,7 @@ sub shoot {
 		print {$w} encode_json( {
 			success => $shotgun->success ? 1 : 0,
 			error   => $shotgun->error,
+			stderr  => do { open( my $e, '<', $stderr ); local $/; my $t = <$e>; defined $t ? $t : '' },
 			state   => $c ? $c->state : undef,
 			known   => $c ? [ sort keys %{ $c->_knowndirs } ] : [],
 		} );
@@ -190,6 +193,7 @@ for my $type ( sort keys %server ) {
 		ok( $res->{success}, "$type: the first run succeeds" ) or diag( $res->{error} );
 		ok( ! defined $res->{error}, "$type: the first run has no error" );
 		is( $res->{state}, 'ready', "$type: the target ends in state ready" );
+		unlike( $res->{stderr}, qr/\[debug\]/, "$type: the debug lines go through the logger, not to STDERR" );
 		for my $f ( @files ) {
 			is( $remote->{get}->( "$s->{base}/$leaf/$f" ), $content{$f}, "$type: $f arrived complete" );
 		}

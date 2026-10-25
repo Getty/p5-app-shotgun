@@ -120,7 +120,7 @@ event _child => sub { return };
 event transfer => sub {
 	my $self = shift;
 
-	$self->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );
+	$self->shotgun->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );
 
 	# Do we need to mkdir the file's path?
 	my $dir = $self->file->dir->absolute( $self->path )->stringify;

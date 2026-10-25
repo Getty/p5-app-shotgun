@@ -203,7 +203,7 @@ event transfer => sub {
 
 	$self->state( 'xfer' );
 
-	$self->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );
+	$self->shotgun->logger->debug( "Target [" . $self->name . "] starting transfer of '" . $self->file . "'" );
 
 	# Do we need to mkdir the file's path?
 	my $dir = $self->file->dir->absolute( $self->path )->stringify;

@@ -1,0 +1,20 @@
+---
+claimed_at: 2026-10-25T05:39:21Z
+claimed_by: offen-2610
+class: standard
+completed: 2026-10-25T05:39:21Z
+created: 2026-10-21T02:37:56Z
+id: 13
+priority: high
+started: 2026-10-25T05:06:28Z
+status: done
+tags:
+- security
+- cli
+title: Target-Typ aus der Kommandozeile wird per String-Eval geladen
+updated: 2026-10-25T05:39:21Z
+---
+
+lib/App/Shotgun.pm, sub _init: der Typ aus dem Target-Parameter wird per eval use App::Shotgun::Target:: und dem Typ geladen. Der Typ stammt aus der Kommandozeile und ist damit frei waehlbar; ein Tippfehler oder eine manipulierte Zielangabe landet im Eval-Kontext des Prozesses. Fix: die erlaubten Zielklassen als feste Liste im Code fuehren, den Typ gegen diese Liste pruefen und die Klasse per require ohne String-Eval laden. Test: ein unbekannter Typ muss mit einer klaren Fehlermeldung abbrechen und darf keinen Code ausfuehren.
+
+Commit 1b6632b auf offen-2610; t/06 war vor dem Fix rot (Code im Typ lief)

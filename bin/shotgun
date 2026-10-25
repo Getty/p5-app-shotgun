@@ -11,10 +11,6 @@ __END__
 
 =pod
 
-=head1 NAME
-
-shotgun - upload a list of files to one or more FTP or SFTP targets
-
 =head1 SYNOPSIS
 
   shotgun --filelist a_filelist.txt \

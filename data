@@ -1,0 +1,21 @@
+---
+claimed_at: 2026-10-25T05:39:16Z
+claimed_by: offen-2610
+class: standard
+completed: 2026-10-25T05:39:16Z
+created: 2026-10-21T02:37:52Z
+id: 12
+priority: high
+started: 2026-10-25T05:06:23Z
+status: done
+tags:
+- ftp
+- bug
+title: 'FTP-Upload: Lesefehler wird als EOF behandelt, abgeschnittener Upload gilt
+  als Erfolg'
+updated: 2026-10-25T05:39:16Z
+---
+
+lib/App/Shotgun/Target/FTP.pm, sub send_chunk: read liefert undef bei einem Lesefehler zurueck und 0 am Dateiende. Der Vergleich retval == 0 greift aber auch fuer undef, weil undef numerisch als 0 gilt. Der Lesefehler landet damit im Zweig alle Daten gesendet: der Dateihandle wird geschlossen und put_close abgeschickt. Der Server uebernimmt die abgeschnittene Datei, das put-Event meldet Erfolg an die Sync-Schleife und Shotgun meldet success. Folge: eine Datei, die lokal nicht vollstaendig gelesen wurde, gilt als hochgeladen. Fix: den undef-Fall vor dem EOF-Fall pruefen, retval nur bei defined 0 als EOF behandeln und im Fehlerfall einen Lesefehler melden statt die Datei regulaer zu beenden. Test: eine Datei, deren read fehlschlaegt, muss eine Fehlermeldung und kein xferdone ausloesen.
+
+Commit 1f6186e auf offen-2610; Test t/05 war vor dem Fix rot

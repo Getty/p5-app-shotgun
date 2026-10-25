@@ -1,0 +1,22 @@
+---
+claimed_at: 2026-10-25T05:39:31Z
+claimed_by: offen-2610
+class: standard
+completed: 2026-10-25T05:39:31Z
+created: 2026-10-21T02:38:09Z
+id: 16
+priority: medium
+started: 2026-10-25T05:06:37Z
+status: done
+tags:
+- pod
+- cli
+title: 'bin/shotgun: POD ist unbrauchbar (SYNPOSIS, leere DESCRIPTION)'
+updated: 2026-10-25T05:39:31Z
+---
+
+bin/shotgun traegt die POD-Ueberschrift SYNPOSIS statt SYNOPSIS, setzt DESCRIPTION als Ebene 2 statt Ebene 1 und laesst den Abschnitt bis auf dem Wort TODO leer. Es fehlen NAME, eine Beschreibung der Optionen und ein Beispiel. Fix: die POD nach den Hausregeln neu schreiben, ein NAME mit dem Zweck, eine SYNOPSIS mit den Optionen filelist, file, target und source, eine DESCRIPTION, die den Ablauf beschreibt, und eine OPTIONS-Sektion je Option. Test: podchecker bin/shotgun muss ohne Fehler durchlaufen.
+
+Commit 4fe4c42 auf offen-2610; podchecker bin/shotgun sauber. Hinweis: Optionen als =head2 statt =opt, weil podchecker =opt nicht kennt; Pruefung der PodWeaver-Ausgabe (doppeltes NAME?) im dzil build bei k18.
+
+Zusatz-Commit a536dda: handgeschriebenes NAME entfernt, PodWeaver erzeugt es (sonst doppelt im Build).

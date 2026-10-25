@@ -1,6 +1,8 @@
 Revision history for App-Shotgun
 
 {{$NEXT}}
+    - FTP upload: a file that cannot be read completely is now reported as an
+      error instead of being closed as a successful, truncated upload
     - Update to @Author::GETTY plugin bundle
     - Move prereqs to cpanfile
     - Rewrite POD to @Author::GETTY PodWeaver conventions

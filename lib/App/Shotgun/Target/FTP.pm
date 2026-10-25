@@ -319,18 +319,18 @@ sub send_chunk {
 
 	my $buf;
 	my $retval = read( $self->_filefh, $buf, 10_240 ); # TODO is 10240 ok? I lifted it from poco-ftp code
-	if ( $retval ) {
+	if ( ! defined $retval ) {
+		# error reading file - undef, not 0, so it must not be taken for the end of the file
+		$self->error( "[" . $self->name . "] XFER error: unable to read from " . $self->file->absolute( $self->shotgun->source )->stringify . ": $!" );
+	} elsif ( $retval ) {
 		$self->ftp( 'put_data', $buf );
-	} elsif ( $retval == 0 ) {
+	} else {
 		# all done with the file
 		if ( close( $self->_filefh ) ) {
 			$self->ftp( 'put_close' );
 		} else {
 			$self->error( "[" . $self->name . "] XFER error: unable to close " . $self->file->absolute( $self->shotgun->source )->stringify . ": $!" );
 		}
-	} else {
-		# error reading file
-		$self->error( "[" . $self->name . "] XFER error: unable to read from " . $self->file->absolute( $self->shotgun->source )->stringify . ": $!" );
 	}
 
 	return;

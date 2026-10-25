@@ -11,14 +11,73 @@ __END__
 
 =pod
 
-=head1 SYNPOSIS
+=head1 NAME
+
+shotgun - upload a list of files to one or more FTP or SFTP targets
+
+=head1 SYNOPSIS
 
   shotgun --filelist a_filelist.txt \
 	--target FTP:hostname=localhost:username=testftp:password=test
-  shotgun --file first_file.txt --file second_file.txt \
+  shotgun --source /path/to/site --file first_file.txt --file second_file.txt \
 	--target FTP:hostname=localhost:username=testftp:password=test \
-	--target FTP:hostname=remote.server.com:username=testftp:password=test
-  
-=head2 DESCRIPTION
+	--target SFTP:hostname=remote.server.com:username=testftp:path=/srv/www
 
-TODO
+=head1 DESCRIPTION
+
+C<shotgun> sends every file of a file list to every target, on every run. It
+compares nothing - no size, no timestamp, no checksum - and that is the point.
+
+The file list comes from C<--filelist>, from one or more C<--file> options or,
+with C<--filerecursive>, from the C<--source> directory. The targets are given
+as C<--target> options. Each file is uploaded to the first target, then to the
+second one and so on; only when all targets have the file the next file
+follows. With C<--parallel> all targets receive the same file at the same
+time. Missing directories on a target are created one level at a time.
+
+The first error stops the run: all targets are shut down and C<shotgun> exits
+with an exit code above 0.
+
+=head1 OPTIONS
+
+=head2 --filelist
+
+Path to a text file listing the files to upload, one per line, relative to
+C<--source>. An alternative to C<--file>.
+
+=head2 --file
+
+A file to upload, relative to C<--source>. Can be given several times. An
+alternative to C<--filelist>; if both are given, the C<--file> options win.
+
+=head2 --target
+
+A target as C<type:key=value:key=value...>. The type is C<FTP> or C<SFTP>; the
+keys are the attributes of the transport, e.g. C<hostname>, C<username>,
+C<password>, C<path> and C<port>. Can be given several times. A target without
+a C<username> takes its login from F<~/.netrc>.
+
+Example: C<FTP:hostname=ftp.example.com:username=user:password=pass:path=/htdocs>
+
+A colon cannot be part of a value.
+
+=head2 --source
+
+The local directory the files are relative to. The default is the current
+working directory.
+
+=head2 --filerecursive
+
+Take the file list from the C<--source> directory, recursively, instead of
+from C<--filelist> or C<--file>.
+
+=head2 --parallel
+
+Upload each file to all targets at the same time instead of one target after
+the other.
+
+=head2 --transferlog
+
+Append one line per successful transfer to this file.
+
+=cut

@@ -1,6 +1,8 @@
 Revision history for App-Shotgun
 
 {{$NEXT}}
+    - Write the shotgun command line documentation: name, synopsis, a description
+      of the upload order and a section for every option
     - Target types are checked against the known transports (FTP, SFTP) and
       loaded without a string eval, so a crafted target string can no longer
       run code

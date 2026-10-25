@@ -187,7 +187,7 @@ sub walkdir {
 has targets => (
 	traits => ['NoGetopt'],
 	is      => 'ro',
-	isa     => 'ArrayRef[HashRef[Str]]',
+	isa     => 'ArrayRef[HashRef[Str|ArrayRef[Str]]]',
 	default => sub {
 		my $self = shift;
 		if ( $self->has_target ) {

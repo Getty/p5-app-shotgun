@@ -1,6 +1,11 @@
 Revision history for App-Shotgun
 
 {{$NEXT}}
+    - SFTP targets check the host key strictly: an unknown or changed host key
+      ends the run within seconds with an error naming the host, instead of
+      the connection stalling
+    - Add the SFTP target option ssh_options ( -o values for ssh ) to set
+      known_hosts or relax the host key check where it is wanted
     - Read the login of a target without username from ~/.netrc, so no
       credentials have to be given on the command line
     - Log every successful transfer to a file with --transferlog

@@ -34,22 +34,20 @@ plan skip_all => 'set SHOTGUN_TEST_FTP and/or SHOTGUN_TEST_SFTP to test against 
 
 use_ok( 'App::Shotgun' );
 
-# The SFTP transport hands no ssh options to Net::SFTP::Foreign, and a throwaway
-# test server has a host key nobody knows: ssh would wait for an answer that
-# never comes. A wrapper first in the PATH switches the host key check off for
-# this test only, without touching the ~/.ssh of the user.
+# The SFTP transport is strict about host keys: the key of the test server has
+# to be known. It is fetched once into a known_hosts file of its own, which the
+# transport gets through ssh_options - the ~/.ssh of the user stays untouched.
+my $known_hosts;
 if ( $server{SFTP} ) {
-	my( $ssh ) = grep { -x $_ } map { "$_/ssh" } split( /:/, $ENV{PATH} );
-	if ( $ssh ) {
-		my $bin = tempdir( CLEANUP => 1 );
-		my $wrapper = "$bin/ssh";
-		open( my $fh, '>', $wrapper ) or die "cannot write $wrapper: $!";
-		print {$fh} "#!/bin/sh\nexec $ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \"\$@\"\n";
-		close( $fh ) or die "cannot close $wrapper: $!";
-		chmod 0755, $wrapper or die "cannot chmod $wrapper: $!";
-		$ENV{PATH} = "$bin:$ENV{PATH}";
+	my $s = $server{SFTP};
+	$known_hosts = File::Spec->catfile( tempdir( CLEANUP => 1 ), 'known_hosts' );
+	my $scan = `ssh-keyscan -p $s->{port} $s->{host} 2>/dev/null`;
+	if ( defined $scan && length $scan ) {
+		open( my $fh, '>', $known_hosts ) or die "cannot write $known_hosts: $!";
+		print {$fh} $scan;
+		close( $fh ) or die "cannot close $known_hosts: $!";
 	} else {
-		diag( 'no ssh in the PATH, SFTP is not tested' );
+		diag( 'ssh-keyscan found no host key, SFTP is not tested' );
 		delete $server{SFTP};
 	}
 }
@@ -108,6 +106,7 @@ sub remote {
 	require Net::SFTP::Foreign;
 	my $sftp = Net::SFTP::Foreign->new(
 		host => $s->{host}, port => $s->{port}, user => $s->{user}, password => $s->{pass},
+		more => [ -o => "UserKnownHostsFile=$known_hosts" ],
 		timeout => 30,
 	);
 	die "SFTP connect: " . $sftp->error if $sftp->error;
@@ -147,6 +146,7 @@ sub shoot {
 			targets => [ {
 				type => $type, hostname => $s->{host}, port => $s->{port},
 				username => $s->{user}, password => $s->{pass}, path => $path,
+				( $type eq 'SFTP' ? ( ssh_options => [ "UserKnownHostsFile=$known_hosts" ] ) : () ),
 			} ],
 			logger  => Log::Dispatch->new( outputs => [ [ 'Null', min_level => 'debug' ] ] ),
 		);

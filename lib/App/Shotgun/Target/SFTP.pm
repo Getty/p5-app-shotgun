@@ -61,6 +61,48 @@ has password => (
 	predicate => '_has_password',
 );
 
+=attr ssh_options
+
+Options for the C<ssh> command, as C<-o> values ( an ArrayRef, or a comma separated string when given
+on the command line ). Example: C<UserKnownHostsFile=/path/to/known_hosts>.
+
+Unless given here, the connection runs with C<StrictHostKeyChecking=yes>, and with C<BatchMode=yes> when
+no L</password> is set: an unknown or changed host key ends in a connect error naming the host, instead
+of ssh waiting for an answer that never comes. Add the host key to your C<known_hosts>, or pass the
+option that fits your setup, to connect.
+
+The default is: C<StrictHostKeyChecking=yes>
+
+=cut
+
+{
+	use Moose::Util::TypeConstraints;
+
+	subtype 'App::Shotgun::Target::SFTP::SshOptions', as 'ArrayRef[Str]';
+	coerce 'App::Shotgun::Target::SFTP::SshOptions', from 'Str', via { [ split( /,/, $_ ) ] };
+
+	no Moose::Util::TypeConstraints;
+}
+
+has ssh_options => (
+	isa => 'App::Shotgun::Target::SFTP::SshOptions',
+	is => 'ro',
+	coerce => 1,
+	default => sub { [] },
+);
+
+# the -o arguments for Net::SFTP::Foreign: ssh takes the first value it sees
+# for an option, so what the user gave wins over our strict defaults
+sub _ssh_more {
+	my $self = shift;
+
+	my @defaults = ( 'StrictHostKeyChecking=yes' );
+	# BatchMode would switch off the password prompt the password login needs
+	push @defaults, 'BatchMode=yes' if ! $self->_has_password;
+
+	return [ map { ( '-o' => $_ ) } @{ $self->ssh_options }, @defaults ];
+}
+
 # the poco-generic sftp subprocess
 has sftp => (
 	isa => 'Maybe[POE::Component::Generic]',
@@ -104,6 +146,7 @@ sub START {
 			( $self->_has_password ? ( password => $self->password ) : () ),
 
 			timeout => 120,
+			more => $self->_ssh_more,
 		],
 
 #		( 'debug' => 1, 'error' => 'sftp_generic_error' ),
@@ -207,7 +250,9 @@ event sftp_connect => sub {
 		# set our cwd so we can initiate the transfer
 		$self->sftp->setcwd( { 'event' => 'sftp_setcwd', 'data' => $self->path->stringify }, $self->path->stringify );
 	} else {
-		$self->error( "[" . $self->name . "] CONNECT error: " . $response->{'result'}[0] );
+		$self->error( "[" . $self->name . "] CONNECT error: " . $response->{'result'}[0]
+			. " ( for an unknown or changed host key, check known_hosts for " . $self->hostname . ":" . $self->port
+			. " or set ssh_options )" );
 	}
 
 	return;

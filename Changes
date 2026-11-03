@@ -1,6 +1,7 @@
 Revision history for App-Shotgun
 
 {{$NEXT}}
+    - POE, whose kernel App::Shotgun runs, is a direct prerequisite
     - FTP and SFTP targets log their debug messages through the logger of
       the App::Shotgun object, so a logger given by the caller is respected
     - SFTP targets check the host key strictly: an unknown or changed host key

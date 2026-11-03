@@ -1,4 +1,7 @@
 package App::Shotgun::Target::FTP;
+
+our $VERSION = '0.002';
+
 use strict;
 use warnings;
 

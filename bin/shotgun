@@ -2,6 +2,8 @@
 # PODNAME: shotgun
 # ABSTRACT: mass upload of files via SCP/FTP/...
 
+our $VERSION = '0.002';
+
 binmode STDOUT, ":utf8";
 
 use App::Shotgun;

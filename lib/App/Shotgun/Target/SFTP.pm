@@ -1,4 +1,7 @@
 package App::Shotgun::Target::SFTP;
+
+our $VERSION = '0.002';
+
 use strict;
 use warnings;
 

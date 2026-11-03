@@ -6,8 +6,8 @@ no timestamp, no checksum. That is the name and the promise.
 
 One Moose class, one role, two transports, one CLI — `lib/App/Shotgun.pm`,
 `lib/App/Shotgun/Target.pm` (`Moose::Role`), `lib/App/Shotgun/Target/FTP.pm`,
-`lib/App/Shotgun/Target/SFTP.pm`, `bin/shotgun` — plus four tests and the example
-`ex/sync.pl`. The module map, the sync loop, the target state machine and the known
+`lib/App/Shotgun/Target/SFTP.pm`, `bin/shotgun` — plus the tests under `t/` and the
+example `ex/sync.pl`. The module map, the sync loop, the target state machine and the known
 traps live in skill `app-shotgun-core` — they are not repeated here.
 
 Released to CPAN as `App-Shotgun`, built with `Dist::Zilla` via `[@Author::GETTY]`.
@@ -34,17 +34,17 @@ Work is coordinated on the repo's `karr` board (`karr board`).
 
 ## State of the code
 
-The suite does not run here: `prove -lr t/` fails in all four files because
-`MooseX::Types::Path::Class`, `MooseX::Getopt`, `MooseX::LogDispatch`,
-`POE::Component::Client::SimpleFTP`, `POE::Component::Generic`,
-`MooseX::POE::SweetArgs` and `Expect` are not installed. The suite covers the pure
-parts only — the file list, the netrc lookup, the transferlog, the flags — and says
-nothing about the transports and nothing about the sync loop.
+`prove -lr t/` needs the runtime prerequisites from `cpanfile` installed
+(`MooseX::Getopt`, `MooseX::LogDispatch`, `POE::Component::Client::SimpleFTP`,
+`POE::Component::Generic`, `MooseX::POE::SweetArgs`, `Net::SFTP::Foreign`, `Expect` …).
 
-Six defects are known and recorded on the board: a failed read in the FTP transport
-is taken for the end of the file, the target type is loaded with a string eval, the
-example script ships a password in the tarball, the sync loop and the transports have
-no tests at all, the CLI and module POD are unfinished, and there is no CI.
+The suite covers the pure parts — the file list, the netrc lookup, the transferlog,
+the flags — plus the FTP chunk reader, the target type check, the sync loop against
+stub targets and the SFTP host key check. `t/08-live-transports.t` walks both
+transports against a real server and skips unless `SHOTGUN_TEST_FTP` or
+`SHOTGUN_TEST_SFTP` is set.
 
-The release path is blocked as well: there is no `LICENSE` file, so `dzil build`
-aborts before it writes an archive.
+The release path is the bundle's: `LICENSE` and `Changes` are committed, every module
+and `bin/shotgun` carry `our $VERSION`, CI is `.github/workflows/ci.yml` (the shared
+`dzil-test` action on Perl 5.36, 5.38 and 5.40), and `ex/sync.pl` carries placeholder
+hosts and no credentials.

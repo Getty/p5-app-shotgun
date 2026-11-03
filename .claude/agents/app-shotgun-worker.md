@@ -53,14 +53,14 @@ own beyond what the transports need.
 
 ## The traps
 
-Your briefing names seven places where the code does not do what its shape
-suggests. Two of them are the reason a user can lose data: a failed read is
-taken for the end of the file, so the FTP transport closes a truncated upload
-as a success — and the target type is loaded with a string eval, so a `;` in
-the target string ends the `use` and runs the rest as Perl code.
+Your briefing names four places where the code does not do what its shape
+suggests: the colon split of the target string, the relative target path
+resolved against the root, the file list precedence of `file` over `filelist`,
+and the netrc `default` fallback. Two guarantees hold and stay: a failed read in
+the FTP transport is an error, and the target type is checked against `FTP` and
+`SFTP` before it is loaded.
 
-Fix the behaviour, do not paper over it in a test. A test that pins the broken
-behaviour is worse than no test.
+Fix the behaviour, do not paper over it in a test.
 
 ## Verification
 
@@ -69,12 +69,12 @@ prove -lr t/     # everything
 dzil test        # the release-path run
 ```
 
-The suite is green where its dependencies are installed and it covers the pure
-parts — the file list, the netrc lookup, the transferlog, the flags. It says
-nothing about the transports and nothing about the sync loop. Every change to
-the transfer order, the directory creation or the chunked upload needs a test
-that fails without it.
+The suite is green where its dependencies are installed. It covers the pure
+parts, the FTP chunk reader, the target type check, the sync loop against stub
+targets and the SFTP host key check; `t/08-live-transports.t` runs the
+transports against a real server when `SHOTGUN_TEST_FTP` or `SHOTGUN_TEST_SFTP`
+is set. Every change to the transfer order, the directory creation or the
+chunked upload needs a test that fails without it.
 
-A transport test needs a server. If the card asks for one and there is no
-server available, say so in the report and leave the test to the card — do not
-install a server to make the suite green.
+A live transport test needs a server. If there is no server available, say so
+in the report — do not install a server to make the suite green.

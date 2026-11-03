@@ -34,8 +34,9 @@ lists, the CLI, the tests — not prose or changelog wording.
   machine `init → ready → testdir → dir → xfer` and the known-dirs cache keep a transport from
   asking the server twice. A change to any of that is user-visible: it needs a `Changes` entry
   and a test. Contract: skill `app-shotgun-core`.
-- **The suite is silent on the transports and the sync loop.** Every change to the transfer
-  order, the directory creation or the upload needs a test that fails without it.
+- **The sync loop runs against stub targets, the transports against a real server only when
+  `SHOTGUN_TEST_FTP` / `SHOTGUN_TEST_SFTP` are set.** Every change to the transfer order, the
+  directory creation or the upload needs a test that fails without it.
 - **The FTP/SFTP asymmetry is a deliberate keep** — do not unify the two stacks without a card.
 - **One class, one role, two transports.** A third transport composes the role; a plugin
   system needs a card that asks for it.

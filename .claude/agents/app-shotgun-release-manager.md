@@ -43,30 +43,24 @@ file paths and findings, not a change to the world.
 1. **`dist.ini`** — `[@Author::GETTY]` with `name`, `author`, `license`,
    `copyright_holder` and `copyright_year`. All five are set today. There are
    two `author` lines — Torsten Raudssus and Apocalypse — and the built
-   `META.json` carries both in its author array. Check that both are meant to
-   ship.
+   `META.json` carries both in its author array.
 2. **`cpanfile`** — the bundle reads the requirements from there, so this file
-   is the single source of truth. `POE::Kernel` is used in
-   `lib/App/Shotgun.pm` (`POE::Kernel->run`) and as `$poe_kernel` in both
-   transports, but it is not declared; it only arrives transitively through
-   `MooseX::POE::SweetArgs`. Declare it explicitly.
+   is the single source of truth. Every module the code loads directly is
+   listed, `POE` included (`POE::Kernel->run` in `lib/App/Shotgun.pm`,
+   `$poe_kernel` in both transports).
 3. **`Changes`** — the unreleased section has to exist **and** has to have
-   content. It does today, with five entries under `{{$NEXT}}`. An empty
-   section aborts the release test, because the bundle stamps the section with
-   the next version at release time.
-4. **`LICENSE`** — has to be a **committed** file. Today there is none and
-   `dzil build` aborts with `[@Author::GETTY/LicenseFile] no LICENSE in the
-   distribution`. The fix is `dzil genlicense` **and** `git add LICENSE` — the
-   bundle gathers only tracked files, so an untracked LICENSE fails with the
-   identical message.
-5. **`dzil build`** — has to run clean. It does not today, for the reason
-   above. With the LICENSE committed the build writes the archive; then look
-   at what went into it: `ex/sync.pl` is part of the distribution, and that
-   file carries a password and a private address. The board card for it says
-   more.
-6. **The version** — the modules carry no `our $VERSION`. The version comes
-   from the git tags through `@Git::VersionManager` and is stamped into the
-   build. The next version is a maintainer decision, not yours.
+   content. An empty section aborts the release test, because the bundle stamps
+   the section with the next version at release time.
+4. **`LICENSE`** — a **committed** file; the bundle gathers only tracked
+   files, so an untracked LICENSE fails with `[@Author::GETTY/LicenseFile] no
+   LICENSE in the distribution`. `dzil genlicense` writes it, `git add LICENSE`
+   tracks it.
+5. **`dzil build`** — has to run clean and write the archive; then look at what
+   went into it: `ex/sync.pl` ships with placeholder hosts and no credentials.
+6. **The version** — every module under `lib/` and `bin/shotgun` carries
+   `our $VERSION`; the bundle rewrites it at release through
+   `[RewriteVersion::Transitional]` and `[BumpVersionAfterRelease]`. The next
+   version is a maintainer decision, not yours.
 
 **Never** `git push`, never tag, never `dzil release`, never upload to CPAN. A
 release is the maintainer's call, every time. Preparing it is your lane;

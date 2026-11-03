@@ -1,6 +1,6 @@
 ---
 name: app-shotgun-core
-description: "Load before editing App-Shotgun — the mass upload distribution: the four modules, the POE based FTP and SFTP transports, the sync loop, the target state machine, and the traps that a failed read counts as the end of the file and that the target string is loaded with a string eval."
+description: "Load before editing App-Shotgun — the mass upload distribution: the four modules, the POE based FTP and SFTP transports, the sync loop, the target state machine, and the traps in target string parsing, relative paths, file list precedence and the netrc fallback."
 ---
 
 # App::Shotgun — core
@@ -20,7 +20,7 @@ synchroniser.
 | `lib/App/Shotgun/Target/SFTP.pm` | the SFTP transport |
 | `bin/shotgun` | the CLI: `new_with_options` then `shot` |
 | `ex/sync.pl` | a runnable example — not a second implementation |
-| `t/01-load.t` … `t/04-features.t` | the suite: load, getopt, logger, features |
+| `t/*.t` | the suite: load, getopt, logger, features, FTP chunk reader, target type, sync loop, live transports, SFTP host key |
 
 Four modules, one script, one example. There is no plugin registry and no
 second object system.
@@ -30,8 +30,7 @@ second object system.
 `App::Shotgun` is a **Moose class** with the `MooseX::Getopt` role composed —
 that is what gives `new_with_options` and the command line flags. Its logger is
 a `Log::Dispatch` with `debug`, `info` and `warn` handles; `error` is a plain
-attribute of the class, not a logger handle (an earlier version had both and
-Moose warned about the collision).
+attribute of the class, not a logger handle.
 
 `App::Shotgun::Target` is a **`Moose::Role`, not a base class**. `FTP` and
 `SFTP` *compose* it with `with qw(App::Shotgun::Target MooseX::LogDispatch)`.
@@ -94,37 +93,28 @@ composes the role; it does not replace the two.
 
 ## The traps
 
-Seven things in this implementation do not do what their shape suggests. They
-are known, they are not fixed, and they are on the board.
+Four things in this implementation do not do what their shape suggests.
 
-1. **A failed read is taken for the end of the file.** In the FTP transport,
-   `read` returns `undef` on error and `0` at the end of the file. The code
-   asks `if ($retval)` first, and `undef` is false — so the error case falls
-   into the `elsif ($retval == 0)` branch and the transfer is closed as
-   **successful**. The file on the server is truncated at the point of the
-   error and nobody is told. The error branch of the code is unreachable.
-2. **The target type is loaded with a string eval.** `_init` runs
-   `eval "use App::Shotgun::Target::$type"` with `$type` taken from the target
-   string. A `;` inside the value ends the `use` and the rest of the value is
-   executed as Perl code.
-3. **The example script carries a password and an internal host.** `ex/sync.pl`
-   contains a real password and a private address, and `ex/` is not excluded
-   from the distribution — the credentials end up in the CPAN tarball.
-4. **The target string is split on colons.** `FTP:hostname=x:password=a:b` puts
+1. **The target string is split on colons.** `FTP:hostname=x:password=a:b` puts
    `a` into the password and turns `b` into a parameter with the value `1`. A
    colon in a password truncates it silently; the login then fails with a
    message that points nowhere near the cause. An `=` in a value is fine — the
    value is rejoined.
-5. **A relative target path is resolved against the root.** `path => 'htdocs'`
+2. **A relative target path is resolved against the root.** `path => 'htdocs'`
    becomes `/htdocs`, not `htdocs` below the working directory — the POD
    example suggests the latter.
-6. **A file list and a file list together: the second one wins.** The `files`
+3. **A file list and a file list together: the second one wins.** The `files`
    builder reads the `filelist` file first and then overwrites the whole list
    with the `file` arguments, if both were given. The filelist content is read
    and thrown away.
-7. **The netrc fallback reaches every host.** A target without a username falls
+4. **The netrc fallback reaches every host.** A target without a username falls
    back to the `default` entry of `~/.netrc` — so the credentials meant for one
    machine are offered to another one.
+
+Two guarantees hold and have tests: a failed read in the FTP transport is an
+error, never a finished upload (`t/05-ftp-send-chunk.t`), and the target type
+is checked against the known transports `FTP` and `SFTP` before it is loaded —
+nothing from the target string is evaluated (`t/06-target-type.t`).
 
 ## Vocabulary
 
@@ -137,20 +127,25 @@ are known, they are not fixed, and they are on the board.
 
 ## Tests
 
-`prove -lr t/` runs four files: the module loads, `new_with_options` exists,
-no accessor-overwrite warning on load, and the pure features — transferlog,
-recursive file list, netrc lookup, the parallel flag.
+`prove -lr t/` runs the suite: the module loads, `new_with_options` exists,
+no accessor-overwrite warning on load, the pure features (transferlog,
+recursive file list, netrc lookup, the parallel flag), the FTP chunk reader,
+the target type check, the sync loop against stub targets that never touch the
+network, and the SFTP host key check. `t/08-live-transports.t` walks the state
+machine of both transports against a real server and skips unless
+`SHOTGUN_TEST_FTP` / `SHOTGUN_TEST_SFTP` are set (`host:port:user:pass:basepath`).
 
-The suite says nothing about the transports and nothing about the sync loop.
 Anything that changes the order of the transfers, the directory creation or
 the chunked upload needs a test that fails without the change.
 
 ## Distribution conventions
 
-- `dist.ini` uses `[@Author::GETTY]`, the requirements live in the `cpanfile`.
-- The modules carry **no** `our $VERSION` — the version comes from the git
-  tags through `@Git::VersionManager` and is stamped into the build.
-- There is no `LICENSE` file in the repository, so `dzil build` aborts before
-  it writes an archive.
-- The `Changes` file carries an unreleased section with the entries of the
-  current work.
+- `dist.ini` carries the header and `[@Author::GETTY]`; the requirements live in
+  the `cpanfile`, read through `[Prereqs::FromCPANfile]`.
+- Every module under `lib/` and `bin/shotgun` carries `our $VERSION`; the bundle
+  rewrites it at release through `[RewriteVersion::Transitional]` and
+  `[BumpVersionAfterRelease]`.
+- `LICENSE`, `Changes` and `README.md` are committed.
+- The `Changes` file carries an unreleased `{{$NEXT}}` section with the entries
+  of the current work.
+- CI is `.github/workflows/ci.yml`.
